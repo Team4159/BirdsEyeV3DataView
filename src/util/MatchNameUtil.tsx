@@ -20,6 +20,9 @@ export function compareMatchKeys(a: string, b: string): number {
     return { type, matchNumber, setNumber };
   }
 
+  const eventComparison = a.split("_")[0].localeCompare(b.split("_")[0])
+  if(eventComparison != 0) return eventComparison; 
+
   const A = parseKey(a);
   const B = parseKey(b);
 

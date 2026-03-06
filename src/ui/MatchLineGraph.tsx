@@ -26,6 +26,7 @@ ChartJS.register(
 
 type Props = {
   team: FRCTeam
+  events: string[]
 };
 
 export const options = {
@@ -42,46 +43,46 @@ export const options = {
   },
 };
 
-export const MatchLineGraph: React.FC<Props> = ({ team }) => {
-  const labels = team.getMatchNameArray();
+export const MatchLineGraph: React.FC<Props> = ({ team, events }) => {
+  const labels = team.getMatchNameArrayEventsFilter(events);
 
   const data = {
   labels,
   datasets: [
   {
     label: 'Total',
-    data: team.getMatches().map((value) => value.getPoints()),
+    data: team.getMatchesEventsFilter(events).map((value) => value.getPoints()),
     borderColor: 'rgb(255,255,255)',
     backgroundColor: 'rgba(255,255,255,0.3)',
     borderWidth: 3
   },
   {
     label: 'Auto Fuels',
-    data: team.getMatches().map((value) => value.getAutoFuels() * AUTOFUELPOINTS),
+    data: team.getMatchesEventsFilter(events).map((value) => value.getAutoFuels() * AUTOFUELPOINTS),
     borderColor: autoFuelBorderColor,
     backgroundColor: autoFuelColor,
   },
   {
     label: 'Auto Climb',
-    data: team.getMatches().map((value) => climbStatePoints[value.getAutoClimb()].points),
+    data: team.getMatchesEventsFilter(events).map((value) => climbStatePoints[value.getAutoClimb()].points),
     borderColor: autoClimbBorderColor,
     backgroundColor: autoClimbColor,
   },
   {
     label: 'Teleop Fuels',
-    data: team.getMatches().map((value) => value.getTeleopFuels() * TELEOPFUELPOINTS),
+    data: team.getMatchesEventsFilter(events).map((value) => value.getTeleopFuels() * TELEOPFUELPOINTS),
     borderColor: teleopFuelBorderColor,
     backgroundColor: teleopFuelColor,
   },
   {
     label: 'Endgame Climb',
-    data: team.getMatches().map((value) => climbStatePoints[value.getEndgameClimb()].points),
+    data: team.getMatchesEventsFilter(events).map((value) => climbStatePoints[value.getEndgameClimb()].points),
     borderColor: endgameClimbBorderColor,
     backgroundColor: endgameClimbColor,
   },
   {
     label: 'Fouls and Tech Fouls',
-    data: team.getMatches().map((value) => value.getFouls() * FOULPOINTS + value.getTechFouls() * TECHFOULPOINTS),
+    data: team.getMatchesEventsFilter(events).map((value) => value.getFouls() * FOULPOINTS + value.getTechFouls() * TECHFOULPOINTS),
     borderColor: foulBorderColor,
     backgroundColor: foulColor,
   },

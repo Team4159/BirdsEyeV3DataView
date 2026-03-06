@@ -51,6 +51,10 @@ export class MatchData{
         return this.matchKey;
     }
 
+    public getEvent(){
+        return this.matchKey.split("_")[0];
+    }
+
     public getAutoFuels(): number {
         return this.autoFuels;
     }

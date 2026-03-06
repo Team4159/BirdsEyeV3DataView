@@ -12,6 +12,7 @@ import { MatchData } from './util/MatchData';
 import { MatchLineGraph } from './ui/MatchLineGraph';
 import { ScoringPercentagePiChart } from './ui/ScoringPercentagePiChart';
 import { MatchStats } from './ui/MatchStats';
+import { getEventsFromTeams } from './util/GetEvents';
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -32,6 +33,10 @@ const firestore = getFirestore(app);
 function App() {
   const [currentPage, setCurrentPage] = useState("Home");
   const [teams, setTeams] = useState([new FRCTeam("temp")]);
+  //possible events to filter by
+  const [eventChoices, setEventChoices] = useState<string[]>([]);
+  //current event filters
+  const [events, setEvents] = useState<string[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<FRCTeam | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
 
@@ -44,8 +49,7 @@ function App() {
   const unsubscribe = onSnapshot(
     collection(firestore, "matches"), 
     async () => {
-      const teams = await getTeams(firestore);
-      setTeams(teams);
+      updateTeams(firestore);
     }
   );
 
@@ -55,15 +59,47 @@ function App() {
   async function updateTeams(firestore: Firestore){
     const teams = await getTeams(firestore);
     setTeams(teams);
+    console.log(getEventsFromTeams(teams));
+    setEventChoices(getEventsFromTeams(teams));
+  }
+
+  function toggleEvent(event: string) {
+    setEvents((prev) => {
+      if (prev.includes(event)) {
+        // remove event
+        return prev.filter(e => e !== event);
+      } else {
+        // add event
+        return [...prev, event];
+      }
+    });
   }
 
   return (
     <>
+      <div className="eventButtonRow">
+        {eventChoices.map((event, index) => (
+          <button
+            key={index}
+            onClick={() => toggleEvent(event)}
+            style={{
+              backgroundColor: events.includes(event) ? "#4CAF50" : "#ccc",
+              margin: "4px",
+              padding: "6px 10px",
+              cursor: "pointer"
+            }}
+          >
+            {event}
+          </button>
+        ))}
+      </div>
+
       {currentPage === "Home" && (
         <>
           <h1>All Teams</h1>
           <TeamsDisplay 
             teams={teams}
+            events={events}
             onTeamClick={(team: FRCTeam) => {
               setSelectedTeam(team);
               setCurrentPage("TeamDetails");
@@ -77,14 +113,15 @@ function App() {
           <button onClick={() => setCurrentPage("Home")}>Back</button>
           <h3>Team {selectedTeam.getTeamName()}</h3>
           <MatchLineGraph
-            team = {selectedTeam}>
+            team = {selectedTeam}
+            events = {events}>
           </MatchLineGraph>
          <div className="sidebyside">
 
           <ScoringPercentagePiChart 
-            autoFuel={selectedTeam.getAvgAutoFuelPoints()}
-            teleopFuel={selectedTeam.getAvgTeleopPoints()}
-            climb={selectedTeam.getAvgClimbPoints()} />
+            autoFuel={selectedTeam.getAvgAutoFuelPoints(events)}
+            teleopFuel={selectedTeam.getAvgTeleopPoints(events)}
+            climb={selectedTeam.getAvgClimbPoints(events)} />
 
           <div className="matchList">
             {selectedTeam.getMatches().map((match, index) => (
@@ -99,11 +136,10 @@ function App() {
                   cursor: "pointer",
                 }}
               >
-                <span>{match.getName()}</span>
+                <span>{match.getEvent() + " " + match.getName()}</span>
               </div>
             ))}
           </div>
-
         </div>
         </>
       )}
@@ -111,7 +147,7 @@ function App() {
       {currentPage === "MatchDetails" && selectedTeam && selectedMatch && (
         <>
           <button onClick={() => setCurrentPage("TeamDetails")}>Back</button>
-          <h3> {selectedTeam.getTeamName() + " " + selectedMatch.getName()}</h3>
+          <h3> {selectedMatch.getEvent() + " " + selectedTeam.getTeamName() + " " + selectedMatch.getName()}</h3>
 
           <div className="sidebyside">
 

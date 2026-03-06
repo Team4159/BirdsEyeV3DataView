@@ -11,6 +11,7 @@ let lowestClimbAVGScore = Number.MAX_SAFE_INTEGER;
 
 type Props = {
   teams: FRCTeam[];
+  events: string[];
   onTeamClick: (team: FRCTeam) => void;
 };
 
@@ -32,12 +33,12 @@ function getColor(score: number, maxScore: number, minScore: number){
   return interpolateColor(start, end, normalizedScore);
 }
 
-function calculateHighestLowestScores(teams: FRCTeam[]){
+function calculateHighestLowestScores(teams: FRCTeam[], events: string[]){
   teams.forEach((team) => {
-    const avgScore = team.getAvgPoints();
-    const autoAVGScore = team.getAvgAutoPoints();
-    const teleopAVGScore = team.getAvgTeleopPoints();
-    const climbAVGScore = team.getAvgClimbPoints();
+    const avgScore = team.getAvgPoints(events);
+    const autoAVGScore = team.getAvgAutoPoints(events);
+    const teleopAVGScore = team.getAvgTeleopPoints(events);
+    const climbAVGScore = team.getAvgClimbPoints(events);
     
     if(avgScore > highestAVGScore) highestAVGScore = avgScore;
     if(avgScore < lowestAVGScore) lowestAVGScore = avgScore;
@@ -53,7 +54,7 @@ function calculateHighestLowestScores(teams: FRCTeam[]){
   })
 }
 
-export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick}) => {
+export const TeamsDisplay: React.FC<Props> = ({ teams, events, onTeamClick}) => {
   highestAVGScore = 0;
   highestAutoAVGScore = 0;
   highestTeleopAVGScore = 0;
@@ -62,7 +63,7 @@ export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick}) => {
   lowestAutoAVGScore = Number.MAX_SAFE_INTEGER;
   lowestTeleopAVGScore = Number.MAX_SAFE_INTEGER;
   lowestClimbAVGScore = Number.MAX_SAFE_INTEGER;
-  calculateHighestLowestScores(teams);
+  calculateHighestLowestScores(teams, events);
   return (
     <div>
       <div
@@ -75,17 +76,17 @@ export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick}) => {
           <h3>{"avg climb points"}</h3>
       </div>
       {
-      teams.sort((a, b) => b.getAvgPoints() - a.getAvgPoints()).map((team, index) => (
+      teams.sort((a, b) => b.getAvgPoints(events) - a.getAvgPoints(events)).map((team, index) => (
         <div
             key={index} 
             className="datatable"
             onClick = {() => onTeamClick(team)}
             style={{cursor: "pointer"}}>
             <h3 >{team.getTeamName()}</h3>
-            <h3 style={{color: getColor(team.getAvgPoints(), highestAVGScore, lowestAVGScore)}}>{team.getAvgPoints().toFixed(2)}</h3>
-            <h3 style={{color: getColor(team.getAvgAutoPoints(), highestAutoAVGScore, lowestAutoAVGScore)}}>{team.getAvgAutoPoints().toFixed(2)}</h3>
-            <h3 style={{color: getColor(team.getAvgTeleopPoints(), highestTeleopAVGScore, lowestTeleopAVGScore)}}>{team.getAvgTeleopPoints().toFixed(2)}</h3>
-            <h3 style={{color: getColor(team.getAvgClimbPoints(), highestClimbAVGScore, lowestClimbAVGScore)}}>{team.getAvgClimbPoints().toFixed(2)}</h3>
+            <h3 style={{color: getColor(team.getAvgPoints(events), highestAVGScore, lowestAVGScore)}}>{team.getAvgPoints(events).toFixed(2)}</h3>
+            <h3 style={{color: getColor(team.getAvgAutoPoints(events), highestAutoAVGScore, lowestAutoAVGScore)}}>{team.getAvgAutoPoints(events).toFixed(2)}</h3>
+            <h3 style={{color: getColor(team.getAvgTeleopPoints(events), highestTeleopAVGScore, lowestTeleopAVGScore)}}>{team.getAvgTeleopPoints(events).toFixed(2)}</h3>
+            <h3 style={{color: getColor(team.getAvgClimbPoints(events), highestClimbAVGScore, lowestClimbAVGScore)}}>{team.getAvgClimbPoints(events).toFixed(2)}</h3>
         </div>
       ))}
     </div>

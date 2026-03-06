@@ -1,5 +1,6 @@
 import { MatchData } from "./MatchData";
 import { compareMatchKeys } from "./MatchNameUtil";
+import { AUTOFUELPOINTS } from "./PointsConstants";
 
 export class FRCTeam {
     private teamName: string;
@@ -18,49 +19,74 @@ export class FRCTeam {
         this.teamName = teamName;
     }
 
-    getAvgPoints(){
-        var totalPoints = 0;
+    getAvgPoints(events: string[]){
+        var points = 0;
+        var numMatches = 0;
         this.matchesData.forEach(
             (matchData) => {
-                totalPoints += matchData.getPoints();
+                if(events.includes(matchData.getEvent())){
+                    points += matchData.getPoints();
+                    numMatches++;
+                }
             });
-        return totalPoints / this.matchesData.length;
+        if(numMatches == 0) return 0;
+        return points / this.matchesData.length;
     }
 
-    getAvgAutoPoints(){
-        var autoPoints = 0;
+    getAvgAutoPoints(events: string[]){
+        var points = 0;
+        var numMatches = 0;
         this.matchesData.forEach(
             (matchData) => {
-                autoPoints += matchData.getAutoPoints();
+                if(events.includes(matchData.getEvent())){
+                    points += matchData.getAutoPoints();
+                    numMatches++;
+                }
             });
-        return autoPoints / this.matchesData.length;
+        if(numMatches == 0) return 0;
+        return points / this.matchesData.length;
     }
 
-    getAvgAutoFuelPoints(){
-        var autoPoints = 0;
+    getAvgAutoFuelPoints(events: string[]){
+        var points = 0;
+        var numMatches = 0;
         this.matchesData.forEach(
             (matchData) => {
-                autoPoints += matchData.getAutoFuels();
+                if(events.includes(matchData.getEvent())){
+                    points += matchData.getAutoFuels() * AUTOFUELPOINTS;
+                    numMatches++;
+                }
             });
-        return autoPoints / this.matchesData.length;
+        if(numMatches == 0) return 0;
+        return points / this.matchesData.length;
     }
 
-    getAvgTeleopPoints(){
-        var teleopPoints = 0;
+    getAvgTeleopPoints(events: string[]){
+        var points = 0;
+        var numMatches = 0;
         this.matchesData.forEach(
             (matchData) => {
-                teleopPoints += matchData.getTeleopPoints();
+                if(events.includes(matchData.getEvent())){
+                    points += matchData.getTeleopPoints();
+                    numMatches++;
+                }
             });
-        return teleopPoints / this.matchesData.length;
+        if(numMatches == 0) return 0;
+        return points / this.matchesData.length;
     }
 
-    getAvgClimbPoints(){
-        var climbPoints = 0;
+    getAvgClimbPoints(events: string[]){
+        var points = 0;
+        var numMatches = 0;
         this.matchesData.forEach(
             (matchData) => {
-                climbPoints += matchData.getClimbPoints();
+                if(events.includes(matchData.getEvent())){
+                    points += matchData.getClimbPoints();
+                    numMatches++;
+                }
             });
-        return climbPoints / this.matchesData.length;
+        if(numMatches == 0) return 0;
+        return points / this.matchesData.length;
     }
 
     addMatch(matchData: MatchData){
@@ -72,9 +98,25 @@ export class FRCTeam {
         return this.matchesData;
     }
 
+    getMatchesEventsFilter(events: string[]) : MatchData[]{
+        let filteredMatches: MatchData[] = [];
+        this.matchesData.forEach((match) => {
+            if(events.includes(match.getEvent())){
+                filteredMatches.push(match);
+            }
+        })
+        return filteredMatches;
+    }
+
     getMatchNameArray(): string[]{
         let matchNameArray: string[] = [];
         this.matchesData.forEach((value, index) => {matchNameArray[index] = value.getName()});
         return matchNameArray;
+    }
+
+    getMatchNameArrayEventsFilter(events: string[]): string[] {
+        return this.matchesData
+            .filter(match => events.includes(match.getEvent()))
+            .map(match => match.getEvent() + " " + match.getName());
     }
 }
