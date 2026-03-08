@@ -10,5 +10,5 @@ export default defineConfig({
       },
     }),
   ],
-  base: "/BirdsEyeV3DataView"
+  base: "/BirdsEyeV3DataView/"
 })

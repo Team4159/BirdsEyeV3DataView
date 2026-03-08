@@ -59,7 +59,6 @@ function App() {
   async function updateTeams(firestore: Firestore){
     const teams = await getTeams(firestore);
     setTeams(teams);
-    console.log(getEventsFromTeams(teams));
     setEventChoices(getEventsFromTeams(teams));
   }
 
