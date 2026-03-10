@@ -13,6 +13,7 @@ import { MatchLineGraph } from './ui/MatchLineGraph';
 import { ScoringPercentagePiChart } from './ui/ScoringPercentagePiChart';
 import { MatchStats } from './ui/MatchStats';
 import { getEventsFromTeams } from './util/GetEvents';
+import { Login } from './ui/Login';
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -31,7 +32,7 @@ const app = initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
 
 function App() {
-  const [currentPage, setCurrentPage] = useState("Home");
+  const [currentPage, setCurrentPage] = useState("login");
   const [teams, setTeams] = useState([new FRCTeam("temp")]);
   //possible events to filter by
   const [eventChoices, setEventChoices] = useState<string[]>([]);
@@ -76,22 +77,31 @@ function App() {
 
   return (
     <>
-      <div className="eventButtonRow">
-        {eventChoices.map((event, index) => (
-          <button
-            key={index}
-            onClick={() => toggleEvent(event)}
-            style={{
-              backgroundColor: events.includes(event) ? "#4CAF50" : "#ccc",
-              margin: "4px",
-              padding: "6px 10px",
-              cursor: "pointer"
-            }}
-          >
-            {event}
-          </button>
-        ))}
-      </div>
+      {currentPage === "login" && (
+        <Login onChange={() => {
+          setCurrentPage("Home");
+          updateTeams(firestore);
+        }}></Login>
+      )}
+
+      {/* {currentPage !== "login" && ( */}
+        <div className="eventButtonRow">
+          {eventChoices.map((event, index) => (
+            <button
+              key={index}
+              onClick={() => toggleEvent(event)}
+              style={{
+                backgroundColor: events.includes(event) ? "#4CAF50" : "#ccc",
+                margin: "4px",
+                padding: "6px 10px",
+                cursor: "pointer"
+              }}
+            >
+              {event}
+            </button>
+          ))}
+        </div>
+      {/* )} */}
 
       {currentPage === "Home" && (
         <>

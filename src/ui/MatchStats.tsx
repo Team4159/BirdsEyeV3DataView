@@ -62,6 +62,11 @@ export const MatchStats: React.FC<Props> = ({ match }) => {
             <span className="statValue">{match.getDriverNotes()}</span>
         </div>
 
+        <div className="statRow notes">
+            <span className="statLabel">Scouter Email</span>
+            <span className="statValue">{match.getScouterEmail()}</span>
+        </div>
+
         </div>
   );
 };

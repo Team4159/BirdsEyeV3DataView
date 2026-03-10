@@ -16,6 +16,7 @@ export class MatchData{
     private defense: boolean;
     private driverRating: number;
     private driverNotes: string;
+    private scouterEmail: string;
 
     constructor(
         matchKey: string,
@@ -28,7 +29,8 @@ export class MatchData{
         techFouls = 0,
         defense = false,
         driverRating = 3,
-        driverNotes = ""
+        driverNotes = "",
+        scouterEmail = "",
     ){
         this.matchKey = matchKey;
         this.autoFuels = autoFuels;
@@ -41,6 +43,7 @@ export class MatchData{
         this.defense = defense;
         this.driverRating = driverRating;
         this.driverNotes = driverNotes;
+        this.scouterEmail = scouterEmail
     }
 
     public getName(){
@@ -136,6 +139,10 @@ export class MatchData{
     public getClimbPercentage(): number{
         return this.getClimbPoints() / this.getPointsNoFouls();
     }
+
+    public getScouterEmail(): string{
+        return this.scouterEmail
+    }
 }
 
 export function MatchDataFromFirestore(data: DocumentData){
@@ -150,6 +157,7 @@ export function MatchDataFromFirestore(data: DocumentData){
         data.techFouls,
         data.defense,
         data.driverRating,
-        data.driverNotes
+        data.driverNotes,
+        data.email
     )
 }
