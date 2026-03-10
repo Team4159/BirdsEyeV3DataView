@@ -47,20 +47,50 @@ function App() {
   }, []);
 
   useEffect(() => {
-  const unsubscribe = onSnapshot(
-    collection(firestore, "matches"), 
-    async () => {
-      updateTeams(firestore);
-    }
-  );
+    if (currentPage !== "login") {
+      console.log("Setting up Firestore listener");
 
-  return () => unsubscribe(); // cleanup when component unmounts
-}, []);
+      const unsubscribe = onSnapshot(
+        collection(firestore, "matches"),
+        async () => {
+          console.log("Firestore matches changed");
+          updateTeams(firestore);
+        }
+      );
+
+      return () => unsubscribe();
+    }
+  }, [currentPage]); // run whenever currentPage changes
 
   async function updateTeams(firestore: Firestore){
-    const teams = await getTeams(firestore);
-    setTeams(teams);
-    setEventChoices(getEventsFromTeams(teams));
+    const newTeams = await getTeams(firestore);
+
+    setTeams(newTeams);
+    setEventChoices(getEventsFromTeams(newTeams));
+
+    if (selectedTeam) {
+      const updatedTeam = newTeams.find(
+        (t) => t.getTeamName() === selectedTeam.getTeamName()
+      );
+
+      if (updatedTeam) {
+        setSelectedTeam(updatedTeam);
+      }
+    }
+
+    if (selectedMatch && selectedTeam) {
+      const updatedTeam = newTeams.find(
+        (t) => t.getTeamName() === selectedTeam.getTeamName()
+      );
+
+      const updatedMatch = updatedTeam
+        ?.getMatches()
+        .find((m) => m.getName() === selectedMatch.getName());
+
+      if (updatedMatch) {
+        setSelectedMatch(updatedMatch);
+      }
+    }
   }
 
   function toggleEvent(event: string) {
