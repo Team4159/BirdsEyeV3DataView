@@ -13,7 +13,8 @@ import { MatchLineGraph } from './ui/MatchLineGraph';
 import { ScoringPercentagePiChart } from './ui/ScoringPercentagePiChart';
 import { MatchStats } from './ui/MatchStats';
 import { getEventsFromTeams } from './util/GetEvents';
-import { Login } from './ui/Login';
+import { GoogleLogin } from '@react-oauth/google';
+import { logInWithGoogle } from './firebase/Auth';
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -108,10 +109,15 @@ function App() {
   return (
     <>
       {currentPage === "login" && (
-        <Login onChange={() => {
-          setCurrentPage("Home");
-          updateTeams(firestore);
-        }}></Login>
+        <GoogleLogin
+          onSuccess={(credentialResponse) => {
+            logInWithGoogle(credentialResponse);
+            setCurrentPage("Home");
+          }}
+          onError={() => {
+            console.log("Login Failed");
+          }}
+        />
       )}
 
       {/* {currentPage !== "login" && ( */}
