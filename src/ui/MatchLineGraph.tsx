@@ -10,7 +10,6 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import { climbStatePoints } from "../util/ClimbState";
 import { autoClimbBorderColor, autoClimbColor, autoFuelBorderColor, autoFuelColor, endgameClimbBorderColor, endgameClimbColor, foulBorderColor, foulColor, teleopFuelBorderColor, teleopFuelColor } from "./ColorConstants";
 import { AUTOFUELPOINTS, FOULPOINTS, TECHFOULPOINTS, TELEOPFUELPOINTS } from "../util/PointsConstants";
 
@@ -43,7 +42,7 @@ export const options = {
   },
 };
 
-export const MatchLineGraph: React.FC<Props> = ({ team, events }) => {
+export const MatchLineGraph: React.FC<Props> = ({ team }) => {
   const labels = team.getMatchNameArray();
 
   const data = {
