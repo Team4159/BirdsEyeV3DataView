@@ -44,45 +44,45 @@ export const options = {
 };
 
 export const MatchLineGraph: React.FC<Props> = ({ team, events }) => {
-  const labels = team.getMatchNameArrayEventsFilter(events);
+  const labels = team.getMatchNameArray();
 
   const data = {
   labels,
   datasets: [
   {
     label: 'Total',
-    data: team.getMatchesEventsFilter(events).map((value) => value.getPoints()),
+    data: team.getMatches().map((value) => value.getPoints()),
     borderColor: 'rgb(255,255,255)',
     backgroundColor: 'rgba(255,255,255,0.3)',
     borderWidth: 3
   },
   {
     label: 'Auto Fuels',
-    data: team.getMatchesEventsFilter(events).map((value) => value.getAutoFuels() * AUTOFUELPOINTS),
+    data: team.getMatches().map((value) => value.getAutoFuels() * AUTOFUELPOINTS),
     borderColor: autoFuelBorderColor,
     backgroundColor: autoFuelColor,
   },
   {
     label: 'Auto Climb',
-    data: team.getMatchesEventsFilter(events).map((value) => climbStatePoints[value.getAutoClimb()].points),
+    data: team.getMatches().map((value) => value.getAutoClimbPoints()),
     borderColor: autoClimbBorderColor,
     backgroundColor: autoClimbColor,
   },
   {
     label: 'Teleop Fuels',
-    data: team.getMatchesEventsFilter(events).map((value) => value.getTeleopFuels() * TELEOPFUELPOINTS),
+    data: team.getMatches().map((value) => value.getTeleopFuels() * TELEOPFUELPOINTS),
     borderColor: teleopFuelBorderColor,
     backgroundColor: teleopFuelColor,
   },
   {
     label: 'Endgame Climb',
-    data: team.getMatchesEventsFilter(events).map((value) => climbStatePoints[value.getEndgameClimb()].points),
+    data: team.getMatches().map((value) => value.getEndgameClimbPoints()),
     borderColor: endgameClimbBorderColor,
     backgroundColor: endgameClimbColor,
   },
   {
     label: 'Fouls and Tech Fouls',
-    data: team.getMatchesEventsFilter(events).map((value) => value.getFouls() * FOULPOINTS + value.getTechFouls() * TECHFOULPOINTS),
+    data: team.getMatches().map((value) => value.getFouls() * FOULPOINTS + value.getTechFouls() * TECHFOULPOINTS),
     borderColor: foulBorderColor,
     backgroundColor: foulColor,
   },

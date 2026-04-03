@@ -4,17 +4,19 @@ import './App.css'
 //firebase
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore, Firestore, onSnapshot, collection } from "firebase/firestore";
-import { getTeams } from './util/GetTeams';
+import { getFirestore, Firestore, onSnapshot, collection, collectionGroup } from "firebase/firestore";
 import { TeamsDisplay } from './ui/TeamsDisplay';
 import { FRCTeam } from './util/FRCTeam';
 import { MatchData } from './util/MatchData';
 import { MatchLineGraph } from './ui/MatchLineGraph';
 import { ScoringPercentagePiChart } from './ui/ScoringPercentagePiChart';
 import { MatchStats } from './ui/MatchStats';
-import { getEventsFromTeams } from './util/GetEvents';
 import { GoogleLogin } from '@react-oauth/google';
 import { logInWithGoogle } from './firebase/Auth';
+import { getEvents } from './util/GetEvents';
+import { getTeamsFromEvents } from './util/GetTeams';
+import { MatchDataPoint } from './util/MatchDataPoint';
+import { MatchDataPointStats } from './ui/MatchDataPointStats';
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -41,21 +43,26 @@ function App() {
   const [events, setEvents] = useState<string[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<FRCTeam | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
+  const [selectedMatchDataPoint, setSelectedMatchDataPoint] = useState<MatchDataPoint | null>(null);
 
   //run when app loads
   useEffect(() => {
-    updateTeams(firestore);
+    const loadData = async () => {
+      setEventChoices(await getEvents(firestore));
+      //await updateTeams(firestore);
+    };
+
+    loadData();
   }, []);
 
   useEffect(() => {
     if (currentPage !== "login") {
-      console.log("Setting up Firestore listener");
 
       const unsubscribe = onSnapshot(
-        collection(firestore, "matches"),
+        collection(firestore, "events"),
         async () => {
-          console.log("Firestore matches changed");
-          updateTeams(firestore);
+          setEventChoices(await getEvents(firestore));
+          await updateTeams(firestore);
         }
       );
 
@@ -63,11 +70,37 @@ function App() {
     }
   }, [currentPage]); // run whenever currentPage changes
 
-  async function updateTeams(firestore: Firestore){
-    const newTeams = await getTeams(firestore);
+  useEffect(() => {
+    updateTeams(firestore);
+  }, [events]);
 
+  useEffect(() => {
+
+    let isUpdating = false;
+
+    const unsubscribe = onSnapshot(
+      collectionGroup(firestore, "datasets"),
+      async () => {
+        if (isUpdating) return;
+
+        isUpdating = true;
+
+        await updateTeams(firestore);
+
+        isUpdating = false;
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  async function updateTeams(firestore: Firestore){
+    const newTeams = await getTeamsFromEvents(firestore, events);
+
+    // setEventChoices(await getEvents(firestore));
     setTeams(newTeams);
-    setEventChoices(getEventsFromTeams(newTeams));
 
     if (selectedTeam) {
       const updatedTeam = newTeams.find(
@@ -164,9 +197,9 @@ function App() {
          <div className="sidebyside">
 
           <ScoringPercentagePiChart 
-            autoFuel={selectedTeam.getAvgAutoFuelPoints(events)}
-            teleopFuel={selectedTeam.getAvgTeleopPoints(events)}
-            climb={selectedTeam.getAvgClimbPoints(events)} />
+            autoFuel={selectedTeam.getAvgAutoFuelPoints()}
+            teleopFuel={selectedTeam.getAvgTeleopPoints()}
+            climb={selectedTeam.getAvgClimbPoints()} />
 
           <div className="matchList">
             {selectedTeam.getMatches().map((match, index) => (
@@ -202,6 +235,40 @@ function App() {
               climb={selectedMatch.getClimbPoints()} />
 
             <MatchStats match={selectedMatch}/>
+          </div>
+          <div className="matchList">
+            {selectedMatch.getMatchDataPoints().map((matchDataPoint, index) => (
+              <div
+                key={index}
+                className="datatable"
+                onClick={() => {
+                  setSelectedMatchDataPoint(matchDataPoint);
+                  setCurrentPage("MatchDataDetails");
+                }}
+                style={{
+                  cursor: "pointer",
+                }}
+              >
+                <span>{"points: " + matchDataPoint.getPoints() + " scouter email: " + matchDataPoint.getScouterEmail()}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {currentPage === "MatchDataDetails" && selectedTeam && selectedMatch && selectedMatchDataPoint && (
+        <>
+          <button onClick={() => setCurrentPage("MatchDetails")}>Back</button>
+          <h3> {selectedMatch.getEvent() + " " + selectedTeam.getTeamName() + " " + selectedMatch.getName()}</h3>
+
+          <div className="sidebyside">
+
+            <ScoringPercentagePiChart 
+              autoFuel={selectedMatchDataPoint.getAutoFuels()}
+              teleopFuel={selectedMatchDataPoint.getTeleopFuels()}
+              climb={selectedMatchDataPoint.getClimbPoints()} />
+
+            <MatchDataPointStats matchDataPoint ={selectedMatchDataPoint}/>
           </div>
         </>
       )}

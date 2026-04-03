@@ -1,13 +1,12 @@
-import type { FRCTeam } from "./FRCTeam";
+import { fetchScoutedData } from "../firebase/FetchScoutedData";
+import type { Firestore } from "firebase/firestore";
 
-export function getEventsFromTeams(teams: FRCTeam[]) : string[]{
-    let events: string[] = [];
-    teams.forEach((team) => {
-        const matches = team.getMatches();
-        matches.forEach((match) => {
-            const eventName = match.getKey().split("_")[0];
-            if(!events.includes(eventName)) events.push(eventName);
-        })
+export async function getEvents(firestore : Firestore) : Promise<string[]>{
+    let events:string[] = [];
+    const data = await fetchScoutedData(firestore);
+    data.forEach((doc) => {
+        const eventID = doc.id;
+        events.push(eventID);
     })
     return events;
 }
