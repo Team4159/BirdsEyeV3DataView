@@ -1,50 +1,50 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
 }
 
 .logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+    height: 6em;
+    padding: 1.5em;
+    will-change: filter;
+    transition: filter 300ms;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+    filter: drop-shadow(0 0 2em #646cffaa);
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+    filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
 @keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+    a:nth-of-type(2) .logo {
+        animation: logo-spin infinite 20s linear;
+    }
 }
 
 .card {
-  padding: 2em;
+    padding: 2em;
 }
 
 .read-the-docs {
-  color: #888;
+    color: #888;
 }
 
-.datatable{
+.datatable {
     display: grid;
-    grid-auto-flow: column;  /* place each item in the next column */
-    grid-auto-columns: 1fr;  /* each column is equal width */
+    grid-auto-flow: column; /* place each item in the next column */
+    grid-auto-columns: 1fr; /* each column is equal width */
     column-gap: 20px;
     padding: 5px 0;
     margin: 10px;
@@ -56,55 +56,60 @@
     font-size: 16px;
 }
 
-.sidebyside{
+.sidebyside {
     display: grid;
-    grid-template-columns: 1fr 1fr;  /* two equal columns */
+    grid-template-columns: 1fr 1fr; /* two equal columns */
     gap: 20px;
     padding: 20px;
 }
 
-.matchList{
+.matchList {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-.matchStats{
-  background-color: #2b2b2b;
-  padding: 15px;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.matchStats {
+    background-color: #2b2b2b;
+    padding: 15px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.statRow{
-  display: grid;
-  grid-template-columns: 1fr auto;
-  padding: 6px 8px;
-  border-bottom: 1px solid #444;
+.statRow {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    padding: 6px 8px;
+    border-bottom: 1px solid #444;
+    text-align: justify;
 }
 
-.statLabel{
-  font-weight: 600;
-  color: #bbb;
+.statLabel {
+    font-weight: 600;
+    color: #bbb;
 }
 
-.statValue{
-  font-weight: 500;
-  color: #fff;
+.statValue {
+    font-weight: 500;
+    color: #fff;
 }
 
-.notes{
-  grid-template-columns: 1fr;
-  border-bottom: none;
+.notes {
+    grid-template-columns: 1fr;
+    border-bottom: none;
 }
 
+.backButton {
+    width: 50%;
+    background-color: #ccc;
+}
 
-h3{
-  background-color: #252525;
-  margin: 5px;
-  border: none;
-  border-radius: 10px;
-  padding: 5px 5px;
+h3 {
+    background-color: #252525;
+    margin: 5px;
+    border: none;
+    border-radius: 10px;
+    padding: 5px 5px;
 }

@@ -1,5 +1,5 @@
-import type { FRCTeam } from "../util/FRCTeam";
-import { Line } from 'react-chartjs-2';
+import type { FrcTeam } from "../util/FrcTeam";
+import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,9 +9,25 @@ import {
   Title,
   Tooltip,
   Legend,
-} from 'chart.js';
-import { autoClimbBorderColor, autoClimbColor, autoFuelBorderColor, autoFuelColor, endgameClimbBorderColor, endgameClimbColor, foulBorderColor, foulColor, teleopFuelBorderColor, teleopFuelColor } from "./ColorConstants";
-import { AUTOFUELPOINTS, FOULPOINTS, TECHFOULPOINTS, TELEOPFUELPOINTS } from "../util/PointsConstants";
+} from "chart.js";
+import {
+  autoClimbBorderColor,
+  autoClimbColor,
+  autoFuelBorderColor,
+  autoFuelColor,
+  endgameClimbBorderColor,
+  endgameClimbColor,
+  foulBorderColor,
+  foulColor,
+  teleopFuelBorderColor,
+  teleopFuelColor,
+} from "./colorConstants";
+import {
+  AUTOFUELPOINTS,
+  FOULPOINTS,
+  TECHFOULPOINTS,
+  TELEOPFUELPOINTS,
+} from "../util/pointValues";
 
 ChartJS.register(
   CategoryScale,
@@ -20,24 +36,24 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
 );
 
 type Props = {
-  team: FRCTeam
-  events: string[]
+  team: FrcTeam;
+  events: string[];
 };
 
-export const options = {
+const options = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      position: 'top' as const,
+      position: "top" as const,
     },
     title: {
       display: true,
-      text: 'Matches Graph',
+      text: "Matches Graph",
     },
   },
 };
@@ -46,49 +62,67 @@ export const MatchLineGraph: React.FC<Props> = ({ team }) => {
   const labels = team.getMatchNameArray();
 
   const data = {
-  labels,
-  datasets: [
-  {
-    label: 'Total',
-    data: team.getMatches().map((value) => value.getPoints()),
-    borderColor: 'rgb(255,255,255)',
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderWidth: 3
-  },
-  {
-    label: 'Auto Fuels',
-    data: team.getMatches().map((value) => value.getAutoFuels() * AUTOFUELPOINTS),
-    borderColor: autoFuelBorderColor,
-    backgroundColor: autoFuelColor,
-  },
-  {
-    label: 'Auto Climb',
-    data: team.getMatches().map((value) => value.getAutoClimbPoints()),
-    borderColor: autoClimbBorderColor,
-    backgroundColor: autoClimbColor,
-  },
-  {
-    label: 'Teleop Fuels',
-    data: team.getMatches().map((value) => value.getTeleopFuels() * TELEOPFUELPOINTS),
-    borderColor: teleopFuelBorderColor,
-    backgroundColor: teleopFuelColor,
-  },
-  {
-    label: 'Endgame Climb',
-    data: team.getMatches().map((value) => value.getEndgameClimbPoints()),
-    borderColor: endgameClimbBorderColor,
-    backgroundColor: endgameClimbColor,
-  },
-  {
-    label: 'Fouls and Tech Fouls',
-    data: team.getMatches().map((value) => value.getFouls() * FOULPOINTS + value.getTechFouls() * TECHFOULPOINTS),
-    borderColor: foulBorderColor,
-    backgroundColor: foulColor,
-  },
-]
-}
+    labels,
+    datasets: [
+      {
+        label: "Total",
+        data: team.getMatches().map((value) => value.getPoints()),
+        borderColor: "rgb(255,255,255)",
+        backgroundColor: "rgba(255,255,255,0.3)",
+        borderWidth: 3,
+      },
+      {
+        label: "Auto Fuels",
+        data: team
+          .getMatches()
+          .map((value) => value.getAutoFuels() * AUTOFUELPOINTS),
+        borderColor: autoFuelBorderColor,
+        backgroundColor: autoFuelColor,
+      },
+      {
+        label: "Auto Climb",
+        data: team.getMatches().map((value) => value.getAutoClimbPoints()),
+        borderColor: autoClimbBorderColor,
+        backgroundColor: autoClimbColor,
+      },
+      {
+        label: "Teleop Fuels",
+        data: team
+          .getMatches()
+          .map((value) => value.getTeleopFuels() * TELEOPFUELPOINTS),
+        borderColor: teleopFuelBorderColor,
+        backgroundColor: teleopFuelColor,
+      },
+      {
+        label: "Endgame Climb",
+        data: team.getMatches().map((value) => value.getEndgameClimbPoints()),
+        borderColor: endgameClimbBorderColor,
+        backgroundColor: endgameClimbColor,
+      },
+      {
+        label: "Fouls and Tech Fouls",
+        data: team
+          .getMatches()
+          .map(
+            (value) =>
+              value.getFouls() * FOULPOINTS +
+              value.getTechFouls() * TECHFOULPOINTS,
+          ),
+        borderColor: foulBorderColor,
+        backgroundColor: foulColor,
+      },
+    ],
+  };
   return (
-    <div style={{ width: "80vw", height: "500px" }}>
+    <div
+      style={{
+        width: "80vw",
+        height: "500px",
+        position: "relative",
+        left: "50%",
+        transform: "translateX(-50%)",
+      }}
+    >
       <Line options={options} data={data} />
     </div>
   );
