@@ -32,7 +32,7 @@ export async function fetchScoutedEventsData(
       query(
         collectionGroup(firestore, "datasets"),
         where(documentId(), ">", `events/${event}`),
-        where(documentId(), "<", `events/${event}a`),
+        where(documentId(), "<", `events/${event}` + "\uf8ff"),
       ),
     ),
   );

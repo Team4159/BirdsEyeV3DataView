@@ -3,7 +3,7 @@ export function compareMatchKeys(a: string, b: string): number {
     qm: 0,
     qf: 1,
     sf: 2,
-    f: 3
+    f: 3,
   };
 
   function parseKey(key: string) {
@@ -20,8 +20,8 @@ export function compareMatchKeys(a: string, b: string): number {
     return { type, matchNumber, setNumber };
   }
 
-  const eventComparison = a.split("_")[0].localeCompare(b.split("_")[0])
-  if(eventComparison != 0) return eventComparison; 
+  const eventComparison = a.split("_")[0].localeCompare(b.split("_")[0]);
+  if (eventComparison != 0) return eventComparison;
 
   const A = parseKey(a);
   const B = parseKey(b);
@@ -76,6 +76,14 @@ export function formatMatchLabel(key: string): string {
 
   if (type === "Qualification") {
     return `QM ${matchNumber}`;
+  }
+
+  if (type === "Semifinal") {
+    return `Semifinal ${setNumber}`;
+  }
+
+  if (type === "Final") {
+    return `Final ${matchNumber}`;
   }
 
   return `${type} ${setNumber} - Match ${matchNumber}`;

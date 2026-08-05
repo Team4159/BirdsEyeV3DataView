@@ -89,7 +89,7 @@ export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
             onClick={() => onTeamClick(team)}
             style={{ cursor: "pointer" }}
           >
-            <h3>{team.getTeamName()}</h3>
+            <h3>{team.getTeamName().substring(3)}</h3>
             <h3
               style={{
                 color: getColor(

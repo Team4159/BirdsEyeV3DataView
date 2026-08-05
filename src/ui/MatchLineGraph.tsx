@@ -21,6 +21,8 @@ import {
   foulColor,
   teleopFuelBorderColor,
   teleopFuelColor,
+  totalPointsBorderColor,
+  totalPointsColor,
 } from "./colorConstants";
 import {
   AUTOFUELPOINTS,
@@ -67,9 +69,8 @@ export const MatchLineGraph: React.FC<Props> = ({ team }) => {
       {
         label: "Total",
         data: team.getMatches().map((value) => value.getPoints()),
-        borderColor: "rgb(255,255,255)",
-        backgroundColor: "rgba(255,255,255,0.3)",
-        borderWidth: 3,
+        borderColor: totalPointsBorderColor,
+        backgroundColor: totalPointsColor,
       },
       {
         label: "Auto Fuels",
