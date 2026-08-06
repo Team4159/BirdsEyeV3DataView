@@ -11,4 +11,19 @@ export default defineConfig({
     }),
   ],
   base: "/BirdsEyeV3DataView/",
+  build: {
+    chunkSizeWarningLimit: 600,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "firebase",
+              test: /node_modules\/firebase/,
+            },
+          ],
+        },
+      },
+    },
+  },
 });
