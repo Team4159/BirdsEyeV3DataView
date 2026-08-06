@@ -25,10 +25,10 @@ import {
   totalPointsColor,
 } from "./colorConstants";
 import {
-  AUTOFUELPOINTS,
-  FOULPOINTS,
-  TECHFOULPOINTS,
-  TELEOPFUELPOINTS,
+  AUTO_FUEL_POINTS,
+  FOUL_POINTS,
+  TECH_FOUL_POINTS,
+  TELEOP_FUEL_POINTS,
 } from "../util/pointValues";
 
 ChartJS.register(
@@ -76,7 +76,7 @@ export const MatchLineGraph: React.FC<Props> = ({ team }) => {
         label: "Auto Fuels",
         data: team
           .getMatches()
-          .map((value) => value.getAutoFuels() * AUTOFUELPOINTS),
+          .map((value) => value.getAutoFuels() * AUTO_FUEL_POINTS),
         borderColor: autoFuelBorderColor,
         backgroundColor: autoFuelColor,
       },
@@ -90,7 +90,7 @@ export const MatchLineGraph: React.FC<Props> = ({ team }) => {
         label: "Teleop Fuels",
         data: team
           .getMatches()
-          .map((value) => value.getTeleopFuels() * TELEOPFUELPOINTS),
+          .map((value) => value.getTeleopFuels() * TELEOP_FUEL_POINTS),
         borderColor: teleopFuelBorderColor,
         backgroundColor: teleopFuelColor,
       },
@@ -106,8 +106,8 @@ export const MatchLineGraph: React.FC<Props> = ({ team }) => {
           .getMatches()
           .map(
             (value) =>
-              value.getFouls() * FOULPOINTS +
-              value.getTechFouls() * TECHFOULPOINTS,
+              value.getFouls() * FOUL_POINTS +
+              value.getTechFouls() * TECH_FOUL_POINTS,
           ),
         borderColor: foulBorderColor,
         backgroundColor: foulColor,

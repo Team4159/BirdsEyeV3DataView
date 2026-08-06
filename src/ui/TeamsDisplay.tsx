@@ -1,14 +1,43 @@
 import { useEffect } from "react";
 import type { FrcTeam } from "../util/FrcTeam";
 
-let highestAVGScore = 0;
-let highestAutoAVGScore = 0;
-let highestTeleopAVGScore = 0;
-let highestClimbAVGScore = 0;
-let lowestAVGScore = Number.MAX_SAFE_INTEGER;
-let lowestAutoAVGScore = Number.MAX_SAFE_INTEGER;
-let lowestTeleopAVGScore = Number.MAX_SAFE_INTEGER;
-let lowestClimbAVGScore = Number.MAX_SAFE_INTEGER;
+type DataRange = {
+  min: number;
+  max: number;
+};
+type DataRangeKey =
+  | "avgScore"
+  | "autoAvgScore"
+  | "teleopAvgScore"
+  | "climbAvgScore"
+  | "dataPoints";
+function createDataRange(): DataRange {
+  const dataRange: DataRange = {
+    min: 0,
+    max: 0,
+  };
+  resetDataRange(dataRange);
+  return dataRange;
+}
+function resetDataRange(dataRange: DataRange) {
+  dataRange.min = Number.MAX_SAFE_INTEGER;
+  dataRange.max = 0;
+}
+function updateDataRange(dataRange: DataRange, data: number) {
+  if (data > dataRange.max) {
+    dataRange.max = data;
+  }
+  if (data < dataRange.min) {
+    dataRange.min = data;
+  }
+}
+const dataRanges: Readonly<Record<DataRangeKey, DataRange>> = {
+  avgScore: createDataRange(),
+  autoAvgScore: createDataRange(),
+  teleopAvgScore: createDataRange(),
+  climbAvgScore: createDataRange(),
+  dataPoints: createDataRange(),
+};
 
 type Props = {
   teams: FrcTeam[];
@@ -27,58 +56,38 @@ const interpolateColor = (
   return `rgb(${r}, ${g}, ${b})`;
 };
 
-function getColor(score: number, maxScore: number, minScore: number) {
+function getColor(score: number, dataRange: DataRange) {
   const start: [number, number, number] = [255, 0, 0]; // Red
   const end: [number, number, number] = [0, 255, 0]; // Green
-  const normalizedScore = (score - minScore) / (maxScore - minScore);
+  const normalizedScore =
+    (score - dataRange.min) / (dataRange.max - dataRange.min);
   return interpolateColor(start, end, normalizedScore);
 }
 
 function calculateHighestLowestScores(teams: FrcTeam[]) {
   teams.forEach((team) => {
-    const avgScore = team.getAvgPoints();
-    const autoAVGScore = team.getAvgAutoPoints();
-    const teleopAVGScore = team.getAvgTeleopPoints();
-    const climbAVGScore = team.getAvgClimbPoints();
-
-    if (avgScore > highestAVGScore) highestAVGScore = avgScore;
-    if (avgScore < lowestAVGScore) lowestAVGScore = avgScore;
-
-    if (autoAVGScore > highestAutoAVGScore) highestAutoAVGScore = autoAVGScore;
-    if (autoAVGScore < lowestAutoAVGScore) lowestAutoAVGScore = autoAVGScore;
-
-    if (teleopAVGScore > highestTeleopAVGScore)
-      highestTeleopAVGScore = teleopAVGScore;
-    if (teleopAVGScore < lowestTeleopAVGScore)
-      lowestTeleopAVGScore = teleopAVGScore;
-
-    if (climbAVGScore > highestClimbAVGScore)
-      highestClimbAVGScore = climbAVGScore;
-    if (climbAVGScore < lowestClimbAVGScore)
-      lowestClimbAVGScore = climbAVGScore;
+    updateDataRange(dataRanges.avgScore, team.getAvgPoints());
+    updateDataRange(dataRanges.autoAvgScore, team.getAvgAutoPoints());
+    updateDataRange(dataRanges.teleopAvgScore, team.getAvgTeleopPoints());
+    updateDataRange(dataRanges.climbAvgScore, team.getAvgClimbPoints());
+    updateDataRange(dataRanges.dataPoints, team.getDataPoints());
   });
 }
 
 export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
   useEffect(() => {
-    highestAVGScore = 0;
-    highestAutoAVGScore = 0;
-    highestTeleopAVGScore = 0;
-    highestClimbAVGScore = 0;
-    lowestAVGScore = Number.MAX_SAFE_INTEGER;
-    lowestAutoAVGScore = Number.MAX_SAFE_INTEGER;
-    lowestTeleopAVGScore = Number.MAX_SAFE_INTEGER;
-    lowestClimbAVGScore = Number.MAX_SAFE_INTEGER;
+    Object.values(dataRanges).forEach((dataRange) => resetDataRange(dataRange));
   }, []);
   calculateHighestLowestScores(teams);
   return (
     <div>
       <div key="category description" className="datatable">
-        <h3>team</h3>
-        <h3>avg points</h3>
-        <h3>avg auto points</h3>
-        <h3>avg teleop points</h3>
-        <h3>{"avg climb points"}</h3>
+        <h3>Team</h3>
+        <h3>Total</h3>
+        <h3>Auto</h3>
+        <h3>Teleop</h3>
+        <h3>Climb</h3>
+        <h3>Data Points</h3>
       </div>
       {teams
         .sort((a, b) => b.getAvgPoints() - a.getAvgPoints())
@@ -92,11 +101,7 @@ export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
             <h3>{team.getTeamName().substring(3)}</h3>
             <h3
               style={{
-                color: getColor(
-                  team.getAvgPoints(),
-                  highestAVGScore,
-                  lowestAVGScore,
-                ),
+                color: getColor(team.getAvgPoints(), dataRanges.avgScore),
               }}
             >
               {team.getAvgPoints().toFixed(2)}
@@ -105,8 +110,7 @@ export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
               style={{
                 color: getColor(
                   team.getAvgAutoPoints(),
-                  highestAutoAVGScore,
-                  lowestAutoAVGScore,
+                  dataRanges.autoAvgScore,
                 ),
               }}
             >
@@ -116,8 +120,7 @@ export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
               style={{
                 color: getColor(
                   team.getAvgTeleopPoints(),
-                  highestTeleopAVGScore,
-                  lowestTeleopAVGScore,
+                  dataRanges.teleopAvgScore,
                 ),
               }}
             >
@@ -127,12 +130,18 @@ export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
               style={{
                 color: getColor(
                   team.getAvgClimbPoints(),
-                  highestClimbAVGScore,
-                  lowestClimbAVGScore,
+                  dataRanges.climbAvgScore,
                 ),
               }}
             >
               {team.getAvgClimbPoints().toFixed(2)}
+            </h3>
+            <h3
+              style={{
+                color: getColor(team.getDataPoints(), dataRanges.dataPoints),
+              }}
+            >
+              {team.getDataPoints()}
             </h3>
           </div>
         ))}

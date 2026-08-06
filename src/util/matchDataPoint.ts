@@ -5,10 +5,10 @@ import {
   climbStatePoints,
 } from "./ClimbState";
 import {
-  AUTOFUELPOINTS,
-  FOULPOINTS,
-  TECHFOULPOINTS,
-  TELEOPFUELPOINTS,
+  AUTO_FUEL_POINTS,
+  FOUL_POINTS,
+  TECH_FOUL_POINTS,
+  TELEOP_FUEL_POINTS,
 } from "./pointValues";
 
 export class MatchDataPoint {
@@ -92,23 +92,24 @@ export class MatchDataPoint {
 
   public getPoints(): number {
     return (
-      this.autoFuels * AUTOFUELPOINTS +
+      this.autoFuels * AUTO_FUEL_POINTS +
       climbStatePoints[this.autoClimb].points +
-      this.teleopFuels * TELEOPFUELPOINTS +
+      this.teleopFuels * TELEOP_FUEL_POINTS +
       climbStatePoints[this.endgameClimb].points -
-      this.fouls * FOULPOINTS -
-      this.techFouls * TECHFOULPOINTS
+      this.fouls * FOUL_POINTS -
+      this.techFouls * TECH_FOUL_POINTS
     );
   }
 
   public getAutoPoints(): number {
     return (
-      this.autoFuels * AUTOFUELPOINTS + climbStatePoints[this.autoClimb].points
+      this.autoFuels * AUTO_FUEL_POINTS +
+      climbStatePoints[this.autoClimb].points
     );
   }
 
   public getTeleopPoints(): number {
-    return this.teleopFuels * TELEOPFUELPOINTS;
+    return this.teleopFuels * TELEOP_FUEL_POINTS;
   }
 
   public getClimbPoints(): number {
@@ -122,17 +123,17 @@ export class MatchDataPoint {
     return (
       climbStatePoints[this.endgameClimb].points +
       climbStatePoints[this.autoClimb].points +
-      this.autoFuels * AUTOFUELPOINTS +
-      this.teleopFuels * TELEOPFUELPOINTS
+      this.autoFuels * AUTO_FUEL_POINTS +
+      this.teleopFuels * TELEOP_FUEL_POINTS
     );
   }
 
   public getAutoFuelPercentage(): number {
-    return (this.autoFuels * AUTOFUELPOINTS) / this.getPointsNoFouls();
+    return (this.autoFuels * AUTO_FUEL_POINTS) / this.getPointsNoFouls();
   }
 
   public getTeleopFuelPercentage(): number {
-    return (this.teleopFuels * TELEOPFUELPOINTS) / this.getPointsNoFouls();
+    return (this.teleopFuels * TELEOP_FUEL_POINTS) / this.getPointsNoFouls();
   }
 
   public getClimbPercentage(): number {

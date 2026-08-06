@@ -18,11 +18,16 @@ import { MatchLineGraph } from "./ui/MatchLineGraph";
 import { ScoringPercentagePiChart } from "./ui/ScoringPercentagePiChart";
 import { MatchStats } from "./ui/MatchStats";
 import { GoogleLogin } from "@react-oauth/google";
-import { logInWithGoogle } from "./firebase/auth";
 import { getEvents } from "./util/getEvents";
 import { getTeamsFromEvents } from "./util/getTeams";
 import { MatchDataPoint } from "./util/matchDataPoint";
 import { MatchDataPointStats } from "./ui/MatchDataPointStats";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithCredential,
+} from "firebase/auth";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -39,8 +44,10 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
+const auth = getAuth(app);
 
 function App() {
+  const [autoLoginDone, setAutoLoginDone] = useState(false);
   const [currentPage, setCurrentPage] = useState("login");
   const [teams, setTeams] = useState([new FrcTeam("temp")]);
   //possible events to filter by
@@ -107,12 +114,20 @@ function App() {
 
   //run when app loads
   useEffect(() => {
-    const loadData = async () => {
+    // load data
+    (async () => {
       setEventChoices(await getEvents(firestore));
       // await updateTeams(firestore);
-    };
+    })();
 
-    loadData();
+    onAuthStateChanged(auth, (user) => {
+      setAutoLoginDone(true);
+      if (user != null) {
+        setCurrentPage("home");
+      } else {
+        setCurrentPage("login");
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -158,37 +173,44 @@ function App() {
   return (
     <div>
       {currentPage === "login" && (
-        <GoogleLogin
-          onSuccess={(credentialResponse) => {
-            logInWithGoogle(credentialResponse);
-            setCurrentPage("Home");
-          }}
-          onError={() => {
-            console.log("Login Failed");
-          }}
-        />
+        <div className="login-button-container">
+          {autoLoginDone ? (
+            <GoogleLogin
+              onSuccess={async (credentialResponse) => {
+                const credential = GoogleAuthProvider.credential(
+                  credentialResponse.credential,
+                );
+                await signInWithCredential(auth, credential);
+                setCurrentPage("home");
+              }}
+              onError={() => {
+                console.log("Login Failed");
+              }}
+            />
+          ) : null}
+        </div>
       )}
 
-      {/* {currentPage !== "login" && ( */}
-      <div className="eventButtonRow">
-        {eventChoices.map((event, index) => (
-          <button
-            key={index}
-            onClick={() => toggleEvent(event)}
-            style={{
-              backgroundColor: events.includes(event) ? "#4CAF50" : "#ccc",
-              margin: "4px",
-              padding: "6px 10px",
-              cursor: "pointer",
-            }}
-          >
-            {event}
-          </button>
-        ))}
-      </div>
-      {/* )} */}
+      {currentPage !== "login" && (
+        <div className="eventButtonRow">
+          {eventChoices.map((event, index) => (
+            <button
+              key={index}
+              onClick={() => toggleEvent(event)}
+              style={{
+                backgroundColor: events.includes(event) ? "#4CAF50" : "#ccc",
+                margin: "4px",
+                padding: "6px 10px",
+                cursor: "pointer",
+              }}
+            >
+              {event}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {currentPage === "Home" && (
+      {currentPage === "home" && (
         <div>
           <h1>All Teams</h1>
           <TeamsDisplay
@@ -204,7 +226,7 @@ function App() {
 
       {currentPage === "TeamDetails" && selectedTeam && (
         <div>
-          <button className="backButton" onClick={() => setCurrentPage("Home")}>
+          <button className="backButton" onClick={() => setCurrentPage("home")}>
             Back
           </button>
           <h1>Team {selectedTeam.getTeamName().substring(3)}</h1>
@@ -229,7 +251,7 @@ function App() {
                     cursor: "pointer",
                   }}
                 >
-                  <span>{match.getEvent() + " " + match.getName()}</span>
+                  <span>{`${match.getEvent()} ${match.getName()} (${match.getMatchDataPoints().length})`}</span>
                 </div>
               ))}
             </div>
@@ -276,10 +298,7 @@ function App() {
                 }}
               >
                 <span>
-                  {"points: " +
-                    matchDataPoint.getPoints() +
-                    " scouter email: " +
-                    matchDataPoint.getScouterEmail()}
+                  {`Points: ${matchDataPoint.getPoints()}, Scouter Email: ${matchDataPoint.getScouterEmail()}`}
                 </span>
               </div>
             ))}

@@ -1,6 +1,6 @@
 import { MatchData } from "./matchData";
 import { compareMatchKeys } from "./matchNameUtil";
-import { AUTOFUELPOINTS } from "./pointValues";
+import { AUTO_FUEL_POINTS } from "./pointValues";
 
 export class FrcTeam {
   private teamName: string;
@@ -45,7 +45,7 @@ export class FrcTeam {
     let points = 0;
     let numMatches = 0;
     this.matchesData.forEach((matchData) => {
-      points += matchData.getAutoFuels() * AUTOFUELPOINTS;
+      points += matchData.getAutoFuels() * AUTO_FUEL_POINTS;
       numMatches++;
     });
     if (numMatches == 0) return 0;
@@ -91,5 +91,13 @@ export class FrcTeam {
       matchNameArray[index] = value.getName();
     });
     return matchNameArray;
+  }
+
+  getDataPoints(): number {
+    let dataPoints = 0;
+    for (const matchData in this.matchesData) {
+      dataPoints += matchData.length;
+    }
+    return dataPoints;
   }
 }

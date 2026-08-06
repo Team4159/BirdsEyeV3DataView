@@ -1,10 +1,10 @@
 import type { MatchDataPoint } from "./matchDataPoint";
 import { formatMatchLabel } from "./matchNameUtil";
 import {
-  AUTOFUELPOINTS,
-  FOULPOINTS,
-  TECHFOULPOINTS,
-  TELEOPFUELPOINTS,
+  AUTO_FUEL_POINTS,
+  FOUL_POINTS,
+  TECH_FOUL_POINTS,
+  TELEOP_FUEL_POINTS,
 } from "./pointValues";
 
 export class MatchData {
@@ -87,21 +87,21 @@ export class MatchData {
 
   public getPoints(): number {
     return (
-      this.getAutoFuels() * AUTOFUELPOINTS +
+      this.getAutoFuels() * AUTO_FUEL_POINTS +
       this.getAutoClimbPoints() +
-      this.getTeleopFuels() * TELEOPFUELPOINTS +
+      this.getTeleopFuels() * TELEOP_FUEL_POINTS +
       this.getEndgameClimbPoints() -
-      this.getFouls() * FOULPOINTS -
-      this.getTechFouls() * TECHFOULPOINTS
+      this.getFouls() * FOUL_POINTS -
+      this.getTechFouls() * TECH_FOUL_POINTS
     );
   }
 
   public getAutoPoints(): number {
-    return this.getAutoFuels() * AUTOFUELPOINTS + this.getAutoClimbPoints();
+    return this.getAutoFuels() * AUTO_FUEL_POINTS + this.getAutoClimbPoints();
   }
 
   public getTeleopPoints(): number {
-    return this.getTeleopFuels() * TELEOPFUELPOINTS;
+    return this.getTeleopFuels() * TELEOP_FUEL_POINTS;
   }
 
   public getClimbPoints(): number {
@@ -112,17 +112,19 @@ export class MatchData {
     return (
       this.getAutoClimbPoints() +
       this.getEndgameClimbPoints() +
-      this.getAutoFuels() * AUTOFUELPOINTS +
-      this.getTeleopFuels() * TELEOPFUELPOINTS
+      this.getAutoFuels() * AUTO_FUEL_POINTS +
+      this.getTeleopFuels() * TELEOP_FUEL_POINTS
     );
   }
 
   public getAutoFuelPercentage(): number {
-    return (this.getAutoFuels() * AUTOFUELPOINTS) / this.getPointsNoFouls();
+    return (this.getAutoFuels() * AUTO_FUEL_POINTS) / this.getPointsNoFouls();
   }
 
   public getTeleopFuelPercentage(): number {
-    return (this.getTeleopFuels() * TELEOPFUELPOINTS) / this.getPointsNoFouls();
+    return (
+      (this.getTeleopFuels() * TELEOP_FUEL_POINTS) / this.getPointsNoFouls()
+    );
   }
 
   public getClimbPercentage(): number {
