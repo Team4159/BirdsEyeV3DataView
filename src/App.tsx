@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LogOut, ListOrdered, Calendars, Sun, Moon } from "lucide-react";
 import "./App.css";
 
 //firebase
@@ -11,23 +12,22 @@ import {
   collection,
   collectionGroup,
 } from "firebase/firestore";
-import { TeamsDisplay } from "./ui/TeamsDisplay";
 import { FrcTeam } from "./util/FrcTeam";
 import { MatchData } from "./util/matchData";
-import { MatchLineGraph } from "./ui/MatchLineGraph";
-import { ScoringPercentagePiChart } from "./ui/ScoringPercentagePiChart";
-import { MatchStats } from "./ui/MatchStats";
-import { GoogleLogin } from "@react-oauth/google";
 import { getEvents } from "./util/getEvents";
 import { getTeamsFromEvents } from "./util/getTeams";
 import { MatchDataPoint } from "./util/matchDataPoint";
-import { MatchDataPointStats } from "./ui/MatchDataPointStats";
 import {
   getAuth,
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithCredential,
 } from "firebase/auth";
+import { LoginPage } from "./pages/LoginPage";
+import { logOut } from "./firebase/auth";
+import { PageEnum } from "./pages/PageEnum";
+import { applyDarkMode } from "./ui/theme";
+import { SettingsPage } from "./pages/SettingsPage";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -48,7 +48,8 @@ const auth = getAuth(app);
 
 function App() {
   const [autoLoginDone, setAutoLoginDone] = useState(false);
-  const [currentPage, setCurrentPage] = useState("login");
+  const [currentPage, setCurrentPage] = useState<string>(PageEnum.Login);
+  const [darkMode, setDarkMode] = useState(true);
   const [teams, setTeams] = useState([new FrcTeam("temp")]);
   //possible events to filter by
   const [eventChoices, setEventChoices] = useState<string[]>([]);
@@ -123,15 +124,15 @@ function App() {
     onAuthStateChanged(auth, (user) => {
       setAutoLoginDone(true);
       if (user != null) {
-        setCurrentPage("home");
+        setCurrentPage(PageEnum.Settings);
       } else {
-        setCurrentPage("login");
+        setCurrentPage(PageEnum.Login);
       }
     });
   }, []);
 
   useEffect(() => {
-    if (currentPage !== "login") {
+    if (currentPage !== PageEnum.Login) {
       const unsubscribe = onSnapshot(
         collection(firestore, "events"),
         async () => {
@@ -170,173 +171,69 @@ function App() {
     return unsubscribe;
   }, [updateTeams]);
 
+  useEffect(() => {
+    applyDarkMode(darkMode);
+  }, [darkMode]);
+
   return (
-    <div>
-      {currentPage === "login" && (
-        <div className="login-button-container">
-          {autoLoginDone ? (
-            <GoogleLogin
-              onSuccess={async (credentialResponse) => {
-                const credential = GoogleAuthProvider.credential(
-                  credentialResponse.credential,
-                );
-                await signInWithCredential(auth, credential);
-                setCurrentPage("home");
-              }}
-              onError={() => {
-                console.log("Login Failed");
-              }}
-            />
-          ) : null}
-        </div>
+    <main>
+      {currentPage === PageEnum.Login && autoLoginDone && (
+        <LoginPage
+          onSuccess={async (credentialResponse) => {
+            const credential = GoogleAuthProvider.credential(
+              credentialResponse.credential,
+            );
+            await signInWithCredential(auth, credential);
+            setCurrentPage("home");
+          }}
+        />
       )}
 
-      {currentPage !== "login" && (
-        <div className="eventButtonRow">
-          {eventChoices.map((event, index) => (
-            <button
-              key={index}
-              onClick={() => toggleEvent(event)}
-              style={{
-                backgroundColor: events.includes(event) ? "#4CAF50" : "#ccc",
-                margin: "4px",
-                padding: "6px 10px",
-                cursor: "pointer",
-              }}
-            >
-              {event}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {currentPage === "home" && (
-        <div>
-          <h1>All Teams</h1>
-          <TeamsDisplay
-            teams={teams}
-            events={events}
-            onTeamClick={(team: FrcTeam) => {
-              setSelectedTeam(team);
-              setCurrentPage("TeamDetails");
-            }}
-          ></TeamsDisplay>
-        </div>
-      )}
-
-      {currentPage === "TeamDetails" && selectedTeam && (
-        <div>
-          <button className="backButton" onClick={() => setCurrentPage("home")}>
-            Back
-          </button>
-          <h1>Team {selectedTeam.getTeamName().substring(3)}</h1>
-          <MatchLineGraph team={selectedTeam} events={events}></MatchLineGraph>
-          <div className="sidebyside">
-            <ScoringPercentagePiChart
-              autoFuel={selectedTeam.getAvgAutoFuelPoints()}
-              teleopFuel={selectedTeam.getAvgTeleopPoints()}
-              climb={selectedTeam.getAvgClimbPoints()}
-            />
-
-            <div className="matchList">
-              {selectedTeam.getMatches().map((match, index) => (
-                <div
-                  key={index}
-                  className="datatable"
-                  onClick={() => {
-                    setSelectedMatch(match);
-                    setCurrentPage("MatchDetails");
-                  }}
-                  style={{
-                    cursor: "pointer",
-                  }}
-                >
-                  <span>{`${match.getEvent()} ${match.getName()} (${match.getMatchDataPoints().length})`}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {currentPage === "MatchDetails" && selectedTeam && selectedMatch && (
-        <div>
+      {currentPage !== PageEnum.Login && (
+        <nav className="navBar">
           <button
-            className="backButton"
-            onClick={() => setCurrentPage("TeamDetails")}
+            onClick={() => {
+              setDarkMode((p) => !p);
+            }}
           >
-            Back
+            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          <h1>
-            {selectedMatch.getEvent() +
-              " " +
-              selectedTeam.getTeamName().substring(3) +
-              " " +
-              selectedMatch.getName()}
-          </h1>
 
-          <div className="sidebyside">
-            <ScoringPercentagePiChart
-              autoFuel={selectedMatch.getAutoFuels()}
-              teleopFuel={selectedMatch.getTeleopFuels()}
-              climb={selectedMatch.getClimbPoints()}
-            />
+          <button
+            onClick={() => {
+              setCurrentPage(PageEnum.Settings);
+            }}
+          >
+            <Calendars size={20} />
+          </button>
 
-            <MatchStats match={selectedMatch} />
-          </div>
-          <div className="matchList">
-            {selectedMatch.getMatchDataPoints().map((matchDataPoint, index) => (
-              <div
-                key={index}
-                className="datatable"
-                onClick={() => {
-                  setSelectedMatchDataPoint(matchDataPoint);
-                  setCurrentPage("MatchDataDetails");
-                }}
-                style={{
-                  cursor: "pointer",
-                }}
-              >
-                <span>
-                  {`Points: ${matchDataPoint.getPoints()}, Scouter Email: ${matchDataPoint.getScouterEmail()}`}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+          <button
+            onClick={() => {
+              setCurrentPage(PageEnum.EventsOverview);
+            }}
+          >
+            <ListOrdered size={20} />
+          </button>
+
+          <button
+            onClick={() => {
+              logOut();
+              setCurrentPage(PageEnum.Login);
+            }}
+          >
+            <LogOut size={20} />
+          </button>
+        </nav>
       )}
 
-      {currentPage === "MatchDataDetails" &&
-        selectedTeam &&
-        selectedMatch &&
-        selectedMatchDataPoint && (
-          <div>
-            <button
-              className="backButton"
-              onClick={() => setCurrentPage("MatchDetails")}
-            >
-              Back
-            </button>
-            <h1>
-              {selectedMatch.getEvent() +
-                " " +
-                selectedTeam.getTeamName().substring(3) +
-                " " +
-                selectedMatch.getName()}
-            </h1>
-
-            <div className="sidebyside">
-              <ScoringPercentagePiChart
-                autoFuel={selectedMatchDataPoint.getAutoFuels()}
-                teleopFuel={selectedMatchDataPoint.getTeleopFuels()}
-                climb={selectedMatchDataPoint.getClimbPoints()}
-              />
-
-              <MatchDataPointStats matchDataPoint={selectedMatchDataPoint} />
-            </div>
-          </div>
-        )}
-    </div>
+      {currentPage === PageEnum.Settings && (
+        <SettingsPage
+          events={events}
+          eventChoices={eventChoices}
+          toggleEvent={toggleEvent}
+        />
+      )}
+    </main>
   );
 }
 

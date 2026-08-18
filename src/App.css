@@ -1,24 +1,288 @@
-#root {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 2rem;
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+.login-button-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.navBar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+
+    padding: 10px;
+    margin-bottom: 16px;
+
+    background: var(--card);
+    border-radius: 12px;
+}
+
+.navBar button {
+    flex: 1;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--input);
+    color: var(--text);
+}
+
+textarea {
+    min-height: 80px;
+    max-height: 320px;
+    width: 100%;
+    resize: vertical;
+}
+
+h1 {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+}
+
+h3 {
+    margin-top: 12px;
+    margin-bottom: 6px;
+    font-size: 1rem;
+}
+
+.datatable {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+    flex-wrap: wrap; /* allow wrapping if too wide */
+    gap: 6px;
+}
+
+.datatable button {
+    flex: 1;
+    min-height: 44px;
+    font-weight: 600;
+}
+
+.datatable span {
+    font-size: 20px;
+    font-weight: bold;
+    min-width: 40px;
     text-align: center;
 }
 
-.logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
-}
-.logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-    filter: drop-shadow(0 0 2em #61dafbaa);
+.gridcontainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    box-sizing: border-box;
+    width: 100%;
+    gap: 6px;
+    margin-top: 16px;
 }
 
-@keyframes logo-spin {
+.gridcontainer button {
+    min-height: 60px;
+    font-weight: 600;
+}
+
+/*.gridcontainer span {
+    font-size: 20px;
+    font-weight: bold;
+    min-width: 40px;
+    text-align: center;
+}*/
+
+a {
+    font-weight: 500;
+    color: #646cff;
+    text-decoration: inherit;
+}
+a:hover {
+    color: #535bf2;
+}
+
+button {
+    background: var(--button);
+    color: var(--text);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+button::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+button:not(:disabled):active::after {
+    opacity: 0.15;
+}
+
+button:hover {
+    background: var(--button-hover);
+}
+
+button:disabled {
+    background: var(--button-hover);
+    cursor: not-allowed;
+}
+
+button:focus {
+    outline: none;
+}
+
+button:focus-visible {
+    outline: 4px auto -webkit-focus-ring-color;
+}
+
+.redAlliance {
+    background: #b91c1c;
+    color: white;
+}
+
+.blueAlliance {
+    background: #1d4ed8;
+    color: white;
+}
+
+.saveButton {
+    width: 100%;
+    padding: 16px;
+    font-size: 18px;
+    font-weight: 600;
+
+    border: none;
+    border-radius: 12px;
+
+    background: var(--accent);
+    color: white;
+
+    margin-top: 16px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.slidecontainer {
+    width: 100%; /* ensures the container doesn't exceed card width */
+    margin: 12px 0; /* optional spacing */
+}
+
+.slider {
+    width: 100%; /* make slider fill the container */
+    margin: 12px 0; /* optional spacing */
+    margin-top: 0px;
+    padding: 0px;
+    border: 0px;
+}
+
+.teamGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 columns */
+    gap: 8px;
+    margin: 8px 0;
+}
+
+.teamButton {
+    padding: 12px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.teamButton.red {
+    background-color: #b91c1c;
+    color: white;
+}
+
+.teamButton.blue {
+    background-color: #1d4ed8;
+    color: white;
+}
+
+.teamButton.selected {
+    border-color: yellow; /* highlight selected */
+    transform: scale(1.05);
+}
+
+.passwordWrapper {
+    position: relative;
+    width: 100%;
+}
+
+.passwordWrapper input {
+    padding-right: 40px; /* space for icon */
+}
+
+.passwordToggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+
+    background: none;
+    border: none;
+    padding: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+}
+
+.passwordToggle::after {
+    display: none; /* disable your button ripple effect */
+}
+
+.inputError {
+    border: 1px solid #ef4444 !important;
+}
+
+.authError {
+    color: #ef4444;
+    font-size: 14px;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+.animate-spin {
+    animation: spin 1s cubic-bezier(0.17, 0.67, 0.83, 0.67) infinite;
+}
+@keyframes spin {
     from {
         transform: rotate(0deg);
     }
@@ -27,89 +291,24 @@
     }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    a:nth-of-type(2) .logo {
-        animation: logo-spin infinite 20s linear;
-    }
+.square-button {
+    width: auto;
+    aspect-ratio: 1;
+    flex: none !important;
 }
 
-.card {
-    padding: 2em;
+.binary-action-button.yes {
+    background-color: #5bc450;
 }
 
-.read-the-docs {
-    color: #888;
+.binary-action-button.yes:hover {
+    background-color: #73db67;
 }
 
-.datatable {
-    display: grid;
-    grid-auto-flow: column; /* place each item in the next column */
-    grid-auto-columns: 1fr; /* each column is equal width */
-    column-gap: 20px;
-    padding: 5px 0;
-    margin: 4px;
-    border: none;
-    background-color: #353535;
-    color: #eee;
-    border-radius: 12px;
-    padding: 10px 15px;
-    font-size: 16px;
+.binary-action-button.no {
+    background-color: #e04444;
 }
 
-.sidebyside {
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* two equal columns */
-    gap: 20px;
-    padding: 20px;
-}
-
-.matchList {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.matchStats {
-    background-color: #2b2b2b;
-    padding: 15px;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.statRow {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    padding: 6px 8px;
-    border-bottom: 1px solid #444;
-    text-align: justify;
-}
-
-.statLabel {
-    font-weight: 600;
-    color: #bbb;
-}
-
-.statValue {
-    font-weight: 500;
-    color: #fff;
-}
-
-.notes {
-    grid-template-columns: 1fr;
-    border-bottom: none;
-}
-
-.backButton {
-    width: 50%;
-    background-color: #ccc;
-}
-
-h3 {
-    background-color: #252525;
-    margin: 5px;
-    border: none;
-    border-radius: 10px;
-    padding: 5px 5px;
+.binary-action-button.no:hover {
+    background-color: #f75b5b;
 }
