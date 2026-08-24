@@ -1,13 +1,13 @@
 import { useState } from "react";
 
 type SettingsPageProps = {
-  events: string[];
+  eventsChosen: string[];
   eventChoices: string[];
   toggleEvent: (event: string) => void;
 };
 
 export function SettingsPage({
-  events,
+  eventsChosen: events,
   eventChoices,
   toggleEvent: toggleEvent,
 }: SettingsPageProps) {
@@ -15,7 +15,7 @@ export function SettingsPage({
   return (
     <div>
       <div className="card">
-        <h1>Events</h1>
+        <h1>Choose Events</h1>
 
         <input
           placeholder="Search"
@@ -23,13 +23,14 @@ export function SettingsPage({
           onChange={(input) => setSearchValue(input.target.value)}
         ></input>
 
-        <div className="gridcontainer">
+        <div className="grid-container">
           {eventChoices.map((event) => {
             if (!event.toLowerCase().includes(searchValue.toLowerCase())) {
               return;
             }
+            const className = `button event-button ${events.includes(event) ? "yes" : "no"}`
             return (
-              <button onClick={() => toggleEvent(event)}>
+              <button className={className} onClick={() => toggleEvent(event)}>
                 <h4>{event}</h4>
               </button>
             );

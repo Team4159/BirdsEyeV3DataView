@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LogOut, ListOrdered, Calendars, Sun, Moon } from "lucide-react";
+import {
+  LogOut,
+  Calendars,
+  ChartNoAxesCombined,
+  ClipboardPen,
+} from "lucide-react";
 import "./App.css";
 
 //firebase
@@ -28,6 +33,8 @@ import { logOut } from "./firebase/auth";
 import { PageEnum } from "./pages/PageEnum";
 import { applyDarkMode } from "./ui/theme";
 import { SettingsPage } from "./pages/SettingsPage";
+import { AllianceBuilderPage } from "./pages/AllianceBuilderPage";
+import { EventsOverviewPage } from "./pages/EventsOverviewPage";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -54,7 +61,7 @@ function App() {
   //possible events to filter by
   const [eventChoices, setEventChoices] = useState<string[]>([]);
   //current event filters
-  const [events, setEvents] = useState<string[]>([]);
+  const [eventsChosen, setEventsSelected] = useState<string[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<FrcTeam | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
   const [selectedMatchDataPoint, setSelectedMatchDataPoint] =
@@ -65,7 +72,7 @@ function App() {
     async (firestore: Firestore) => {
       const scopeTeamUpdateIndex = teamUpdateIndex.current + 1;
       teamUpdateIndex.current = scopeTeamUpdateIndex;
-      const newTeams = await getTeamsFromEvents(firestore, events);
+      const newTeams = await getTeamsFromEvents(firestore, eventsChosen);
       if (scopeTeamUpdateIndex != teamUpdateIndex.current) {
         return;
       }
@@ -97,17 +104,16 @@ function App() {
         }
       }
     },
-    [events, selectedMatch, selectedTeam, teamUpdateIndex],
+    [eventsChosen, selectedMatch, selectedTeam, teamUpdateIndex],
   );
 
   function toggleEvent(event: string) {
-    setEvents((prev) => {
+    setEventsSelected((prev) => {
       if (prev.includes(event)) {
         // remove event
         return prev.filter((e) => e !== event);
       } else {
         // add event
-        console.log("add:", event);
         return [...prev, event];
       }
     });
@@ -143,14 +149,14 @@ function App() {
 
       return () => unsubscribe();
     }
-  }, [currentPage, events, updateTeams]); // run whenever currentPage changes
+  }, [currentPage, eventsChosen, updateTeams]); // run whenever currentPage changes
 
   useEffect(() => {
     (async () => {
       updateTeams(firestore);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events]);
+  }, [eventsChosen]);
 
   useEffect(() => {
     let isUpdating = false;
@@ -193,14 +199,6 @@ function App() {
         <nav className="navBar">
           <button
             onClick={() => {
-              setDarkMode((p) => !p);
-            }}
-          >
-            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-
-          <button
-            onClick={() => {
               setCurrentPage(PageEnum.Settings);
             }}
           >
@@ -212,7 +210,15 @@ function App() {
               setCurrentPage(PageEnum.EventsOverview);
             }}
           >
-            <ListOrdered size={20} />
+            <ChartNoAxesCombined size={20} />
+          </button>
+
+          <button
+            onClick={() => {
+              setCurrentPage(PageEnum.AllianceBuilder);
+            }}
+          >
+            <ClipboardPen size={20} />
           </button>
 
           <button
@@ -228,11 +234,17 @@ function App() {
 
       {currentPage === PageEnum.Settings && (
         <SettingsPage
-          events={events}
+          eventsChosen={eventsChosen}
           eventChoices={eventChoices}
           toggleEvent={toggleEvent}
         />
       )}
+
+      {currentPage === PageEnum.EventsOverview && (
+        <EventsOverviewPage eventsChosen={eventsChosen} teams={teams} />
+      )}
+
+      {currentPage === PageEnum.AllianceBuilder && <AllianceBuilderPage />}
     </main>
   );
 }

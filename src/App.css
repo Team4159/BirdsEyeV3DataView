@@ -15,8 +15,32 @@
     background: var(--card);
     border-radius: 14px;
     padding: 18px;
+    margin-left: auto;
+    margin-right: auto;
     margin-bottom: 18px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    max-width: var(--card-max-width);
+}
+
+.wide-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 18px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    display: grid;
+    height: 100vh;
+    grid-template-rows: auto 1fr;
+}
+
+.xy-scroll-container {
+    background-color: var(--bg);
+    overflow-x: auto;
+    overflow-y: auto;
+    margin-top: 18px;
+    padding: 10px;
 }
 
 .navBar {
@@ -29,10 +53,14 @@
     gap: 10px;
 
     padding: 10px;
+    margin-left: auto;
+    margin-right: auto;
     margin-bottom: 16px;
 
     background: var(--card);
     border-radius: 12px;
+
+    max-width: var(--card-max-width);
 }
 
 .navBar button {
@@ -70,28 +98,31 @@ h3 {
 }
 
 .datatable {
+    background-color: var(--card);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: space-around;
     margin-top: 6px;
     flex-wrap: wrap; /* allow wrapping if too wide */
     gap: 6px;
 }
 
 .datatable button {
+    background-color: var(--card);
     flex: 1;
     min-height: 44px;
     font-weight: 600;
 }
 
 .datatable span {
+    background-color: var(--card);
     font-size: 20px;
     font-weight: bold;
     min-width: 40px;
     text-align: center;
 }
 
-.gridcontainer {
+.grid-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     box-sizing: border-box;
@@ -100,12 +131,12 @@ h3 {
     margin-top: 16px;
 }
 
-.gridcontainer button {
+.grid-container button {
     min-height: 60px;
     font-weight: 600;
 }
 
-/*.gridcontainer span {
+/*.grid-container span {
     font-size: 20px;
     font-weight: bold;
     min-width: 40px;
@@ -199,79 +230,6 @@ button:focus-visible {
     margin: 12px 0; /* optional spacing */
 }
 
-.slider {
-    width: 100%; /* make slider fill the container */
-    margin: 12px 0; /* optional spacing */
-    margin-top: 0px;
-    padding: 0px;
-    border: 0px;
-}
-
-.teamGrid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr); /* 3 columns */
-    gap: 8px;
-    margin: 8px 0;
-}
-
-.teamButton {
-    padding: 12px;
-    border-radius: 8px;
-    border: 2px solid transparent;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.teamButton.red {
-    background-color: #b91c1c;
-    color: white;
-}
-
-.teamButton.blue {
-    background-color: #1d4ed8;
-    color: white;
-}
-
-.teamButton.selected {
-    border-color: yellow; /* highlight selected */
-    transform: scale(1.05);
-}
-
-.passwordWrapper {
-    position: relative;
-    width: 100%;
-}
-
-.passwordWrapper input {
-    padding-right: 40px; /* space for icon */
-}
-
-.passwordToggle {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-
-    background: none;
-    border: none;
-    padding: 0;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    cursor: pointer;
-}
-
-.passwordToggle::after {
-    display: none; /* disable your button ripple effect */
-}
-
-.inputError {
-    border: 1px solid #ef4444 !important;
-}
-
 .authError {
     color: #ef4444;
     font-size: 14px;
@@ -291,24 +249,29 @@ button:focus-visible {
     }
 }
 
+.button {
+    filter: brightness(100%);
+}
+
+.button:hover {
+    filter: brightness(120%);
+}
+
 .square-button {
     width: auto;
     aspect-ratio: 1;
     flex: none !important;
 }
 
-.binary-action-button.yes {
-    background-color: #5bc450;
+.event-button.yes {
+    background-color: var(--accent);
 }
 
-.binary-action-button.yes:hover {
-    background-color: #73db67;
+.event-button.no {
+    background-color: var(--button);
 }
 
-.binary-action-button.no {
-    background-color: #e04444;
-}
-
-.binary-action-button.no:hover {
-    background-color: #f75b5b;
+.text-container {
+    overflow-wrap: normal;
+    word-break: normal;
 }

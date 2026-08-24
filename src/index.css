@@ -9,6 +9,8 @@
     --button-hover: #585858;
 
     --accent: #22c55e;
+
+    --card-max-width: 600px;
 }
 
 body.light {
@@ -34,7 +36,6 @@ body {
 
 #root {
     width: 100%;
-    max-width: 600px;
     margin: auto;
     padding: 16px;
 }

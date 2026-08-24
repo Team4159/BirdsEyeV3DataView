@@ -5,4 +5,5 @@ export const PageEnum = Object.freeze({
   TeamOverview: "TeamOverview",
   MatchOverview: "MatchOverview",
   MatchSpecificOverview: "MatchSpecficOverview",
+  AllianceBuilder: "AllianceBuilder",
 });
