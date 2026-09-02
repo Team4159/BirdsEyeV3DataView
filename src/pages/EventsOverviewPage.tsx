@@ -18,7 +18,7 @@ export function EventsOverviewPage({
           <TeamsDisplay
             teams={teams}
             events={eventsChosen}
-            onTeamClick={() => {}}
+            onTeamClick={console.log}
           />
         </div>
       </div>

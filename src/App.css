@@ -32,15 +32,48 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     display: grid;
     height: 100vh;
-    grid-template-rows: auto 1fr;
 }
 
 .xy-scroll-container {
     background-color: var(--bg);
-    overflow-x: auto;
-    overflow-y: auto;
+    overflow: auto;
     margin-top: 18px;
     padding: 10px;
+}
+
+.teams-display {
+    overflow: auto;
+    white-space: nowrap;
+    width: 100%;
+}
+
+.teams-display-row {
+    display: grid;
+    grid-template-columns: repeat(6, 25%);
+    column-gap: 8px;
+}
+
+.teams-display-header {
+    display: inline-block;
+    font-size: 20px;
+    text-align: center;
+    margin-left: 4px;
+    margin-right: 4px;
+    width: 100%;
+}
+
+.teams-display-item {
+    display: inline-block;
+    font-size: 16px;
+    text-align: center;
+    background-color: var(--card);
+    border-radius: 8px;
+    margin: 4px;
+    font-size: 20px;
+    min-height: 30px;
+    font-weight: bold;
+    min-width: 40px;
+    width: 100%;
 }
 
 .navBar {
@@ -103,7 +136,8 @@ h3 {
     align-items: center;
     justify-content: space-around;
     margin-top: 6px;
-    flex-wrap: wrap; /* allow wrapping if too wide */
+    flex-wrap: wrap;
+    /* allow wrapping if too wide */
     gap: 6px;
 }
 
@@ -148,6 +182,7 @@ a {
     color: #646cff;
     text-decoration: inherit;
 }
+
 a:hover {
     color: #535bf2;
 }
@@ -226,8 +261,10 @@ button:focus-visible {
 }
 
 .slidecontainer {
-    width: 100%; /* ensures the container doesn't exceed card width */
-    margin: 12px 0; /* optional spacing */
+    width: 100%;
+    /* ensures the container doesn't exceed card width */
+    margin: 12px 0;
+    /* optional spacing */
 }
 
 .authError {
@@ -240,10 +277,12 @@ button:focus-visible {
 .animate-spin {
     animation: spin 1s cubic-bezier(0.17, 0.67, 0.83, 0.67) infinite;
 }
+
 @keyframes spin {
     from {
         transform: rotate(0deg);
     }
+
     to {
         transform: rotate(360deg);
     }

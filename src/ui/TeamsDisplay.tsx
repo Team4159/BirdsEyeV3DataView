@@ -80,69 +80,74 @@ export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
   }, []);
   calculateHighestLowestScores(teams);
   return (
-    <div>
-      <div key="category description" className="datatable">
-        <h3>Team</h3>
-        <h3>Total</h3>
-        <h3>Auto</h3>
-        <h3>Teleop</h3>
-        <h3>Climb</h3>
-        <h3>Data Points</h3>
+    <div className="teams-display">
+      <div className="teams-display-row">
+        <div className="teams-display-header">Team</div>
+        <div className="teams-display-header">Total</div>
+        <div className="teams-display-header">Auto</div>
+        <div className="teams-display-header">Teleop</div>
+        <div className="teams-display-header">Climb</div>
+        <div className="teams-display-header">Data Points</div>
       </div>
       {teams
         .sort((a, b) => b.getAvgPoints() - a.getAvgPoints())
         .map((team, index) => (
           <div
             key={index}
-            className="datatable"
+            className="teams-display-row"
             onClick={() => onTeamClick(team)}
             style={{ cursor: "pointer" }}
           >
-            <h3>{team.getTeamName().substring(3)}</h3>
-            <h3
+            <div className="teams-display-item">{team.getTeamName().substring(3)}</div>
+            <div
               style={{
                 color: getColor(team.getAvgPoints(), dataRanges.avgScore),
               }}
+              className="teams-display-item"
             >
               {team.getAvgPoints().toFixed(2)}
-            </h3>
-            <h3
+            </div>
+            <div
               style={{
                 color: getColor(
                   team.getAvgAutoPoints(),
                   dataRanges.autoAvgScore,
                 ),
               }}
+              className="teams-display-item"
             >
               {team.getAvgAutoPoints().toFixed(2)}
-            </h3>
-            <h3
+            </div>
+            <div
               style={{
                 color: getColor(
                   team.getAvgTeleopPoints(),
                   dataRanges.teleopAvgScore,
                 ),
               }}
+              className="teams-display-item"
             >
               {team.getAvgTeleopPoints().toFixed(2)}
-            </h3>
-            <h3
+            </div>
+            <div
               style={{
                 color: getColor(
                   team.getAvgClimbPoints(),
                   dataRanges.climbAvgScore,
                 ),
               }}
+              className="teams-display-item"
             >
               {team.getAvgClimbPoints().toFixed(2)}
-            </h3>
-            <h3
+            </div>
+            <div
               style={{
                 color: getColor(team.getDataPoints(), dataRanges.dataPoints),
               }}
+              className="teams-display-item"
             >
               {team.getDataPoints()}
-            </h3>
+            </div>
           </div>
         ))}
     </div>
