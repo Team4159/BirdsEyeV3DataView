@@ -1,7 +1,7 @@
 import type { CredentialResponse } from "@react-oauth/google";
 import {
-  getAuth,
   GoogleAuthProvider,
+  getAuth,
   signInWithCredential,
   signOut,
 } from "firebase/auth";

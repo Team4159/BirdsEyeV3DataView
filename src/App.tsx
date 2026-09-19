@@ -1,33 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 
+import { GoogleLogin } from "@react-oauth/google";
 //firebase
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import {
-  getFirestore,
-  Firestore,
-  onSnapshot,
-  collection,
-  collectionGroup,
-} from "firebase/firestore";
-import { TeamsDisplay } from "./ui/TeamsDisplay";
-import { FrcTeam } from "./util/FrcTeam";
-import { MatchData } from "./util/matchData";
-import { MatchLineGraph } from "./ui/MatchLineGraph";
-import { ScoringPercentagePiChart } from "./ui/ScoringPercentagePiChart";
-import { MatchStats } from "./ui/MatchStats";
-import { GoogleLogin } from "@react-oauth/google";
-import { getEvents } from "./util/getEvents";
-import { getTeamsFromEvents } from "./util/getTeams";
-import { MatchDataPoint } from "./util/matchDataPoint";
-import { MatchDataPointStats } from "./ui/MatchDataPointStats";
-import {
-  getAuth,
   GoogleAuthProvider,
+  getAuth,
   onAuthStateChanged,
   signInWithCredential,
 } from "firebase/auth";
+import {
+  collection,
+  collectionGroup,
+  type Firestore,
+  getFirestore,
+  onSnapshot,
+} from "firebase/firestore";
+import { MatchDataPointStats } from "./ui/MatchDataPointStats";
+import { MatchLineGraph } from "./ui/MatchLineGraph";
+import { MatchStats } from "./ui/MatchStats";
+import { ScoringPercentagePiChart } from "./ui/ScoringPercentagePiChart";
+import { TeamsDisplay } from "./ui/TeamsDisplay";
+import { FrcTeam } from "./util/FrcTeam";
+import { getEvents } from "./util/getEvents";
+import { getTeamsFromEvents } from "./util/getTeams";
+import type { MatchData } from "./util/matchData";
+import type { MatchDataPoint } from "./util/matchDataPoint";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -65,7 +65,7 @@ function App() {
       const scopeTeamUpdateIndex = teamUpdateIndex.current + 1;
       teamUpdateIndex.current = scopeTeamUpdateIndex;
       const newTeams = await getTeamsFromEvents(firestore, events);
-      if (scopeTeamUpdateIndex != teamUpdateIndex.current) {
+      if (scopeTeamUpdateIndex !== teamUpdateIndex.current) {
         return;
       }
 
@@ -96,7 +96,7 @@ function App() {
         }
       }
     },
-    [events, selectedMatch, selectedTeam, teamUpdateIndex],
+    [events, selectedMatch, selectedTeam],
   );
 
   function toggleEvent(event: string) {
@@ -142,14 +142,14 @@ function App() {
 
       return () => unsubscribe();
     }
-  }, [currentPage, events, updateTeams]); // run whenever currentPage changes
+  }, [currentPage]); // run whenever currentPage changes
 
   useEffect(() => {
     (async () => {
       updateTeams(firestore);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events]);
+  }, [updateTeams]);
 
   useEffect(() => {
     let isUpdating = false;
@@ -168,7 +168,7 @@ function App() {
     );
 
     return unsubscribe;
-  }, [updateTeams]);
+  }, []);
 
   return (
     <div>
@@ -193,9 +193,10 @@ function App() {
 
       {currentPage !== "login" && (
         <div className="eventButtonRow">
-          {eventChoices.map((event, index) => (
+          {eventChoices.map((event) => (
             <button
-              key={index}
+              type="button"
+              key={`button-${event}`}
               onClick={() => toggleEvent(event)}
               style={{
                 backgroundColor: events.includes(event) ? "#4CAF50" : "#ccc",
@@ -226,7 +227,11 @@ function App() {
 
       {currentPage === "TeamDetails" && selectedTeam && (
         <div>
-          <button className="backButton" onClick={() => setCurrentPage("home")}>
+          <button
+            type="button"
+            className="backButton"
+            onClick={() => setCurrentPage("home")}
+          >
             Back
           </button>
           <h1>Team {selectedTeam.getTeamName().substring(3)}</h1>
@@ -262,6 +267,7 @@ function App() {
       {currentPage === "MatchDetails" && selectedTeam && selectedMatch && (
         <div>
           <button
+            type="button"
             className="backButton"
             onClick={() => setCurrentPage("TeamDetails")}
           >
@@ -312,6 +318,7 @@ function App() {
         selectedMatchDataPoint && (
           <div>
             <button
+              type="button"
               className="backButton"
               onClick={() => setCurrentPage("MatchDetails")}
             >
