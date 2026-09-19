@@ -76,7 +76,9 @@ function calculateHighestLowestScores(teams: FrcTeam[]) {
 
 export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
   useEffect(() => {
-    Object.values(dataRanges).forEach((dataRange) => resetDataRange(dataRange));
+    Object.values(dataRanges).forEach((dataRange) => {
+      resetDataRange(dataRange);
+    });
   }, []);
   calculateHighestLowestScores(teams);
   return (
@@ -91,9 +93,9 @@ export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
       </div>
       {teams
         .sort((a, b) => b.getAvgPoints() - a.getAvgPoints())
-        .map((team, index) => (
+        .map((team) => (
           <div
-            key={index}
+            key={`team-row-${team}`}
             className="datatable"
             onClick={() => onTeamClick(team)}
             style={{ cursor: "pointer" }}
