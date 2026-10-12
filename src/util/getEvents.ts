@@ -1,5 +1,5 @@
-import { fetchScoutedEvents } from "../firebase/fetchScoutedData.ts";
 import type { Firestore } from "firebase/firestore";
+import { fetchScoutedEvents } from "../firebase/fetchScoutedData.ts";
 
 export async function getEvents(firestore: Firestore): Promise<string[]> {
   const events: string[] = [];

@@ -9,7 +9,7 @@ type SettingsPageProps = {
 export function SettingsPage({
   eventsChosen: events,
   eventChoices,
-  toggleEvent: toggleEvent,
+  toggleEvent,
 }: SettingsPageProps) {
   const [searchValue, setSearchValue] = useState("");
   return (

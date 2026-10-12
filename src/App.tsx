@@ -1,40 +1,40 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  LogOut,
   Calendars,
   ChartNoAxesCombined,
   ClipboardPen,
+  LogOut,
 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 
 //firebase
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import {
-  getFirestore,
-  Firestore,
-  onSnapshot,
-  collection,
-  collectionGroup,
-} from "firebase/firestore";
-import { FrcTeam } from "./util/FrcTeam";
-import { MatchData } from "./util/matchData";
-import { getEvents } from "./util/getEvents";
-import { getTeamsFromEvents } from "./util/getTeams";
-import { MatchDataPoint } from "./util/matchDataPoint";
-import {
-  getAuth,
   GoogleAuthProvider,
+  getAuth,
   onAuthStateChanged,
   signInWithCredential,
 } from "firebase/auth";
-import { LoginPage } from "./pages/LoginPage";
+import {
+  collection,
+  collectionGroup,
+  type Firestore,
+  getFirestore,
+  onSnapshot,
+} from "firebase/firestore";
 import { logOut } from "./firebase/auth";
-import { PageEnum } from "./pages/PageEnum";
-import { applyDarkMode } from "./ui/theme";
-import { SettingsPage } from "./pages/SettingsPage";
 import { AllianceBuilderPage } from "./pages/AllianceBuilderPage";
 import { EventsOverviewPage } from "./pages/EventsOverviewPage";
+import { LoginPage } from "./pages/LoginPage";
+import { PageEnum } from "./pages/PageEnum";
+import { SettingsPage } from "./pages/SettingsPage";
+import { applyDarkMode } from "./ui/theme";
+import { FrcTeam } from "./util/FrcTeam";
+import { getEvents } from "./util/getEvents";
+import { getTeamsFromEvents } from "./util/getTeams";
+import type { MatchData } from "./util/matchData";
+import type { MatchDataPoint } from "./util/matchDataPoint";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -56,7 +56,7 @@ const auth = getAuth(app);
 function App() {
   const [autoLoginDone, setAutoLoginDone] = useState(false);
   const [currentPage, setCurrentPage] = useState<string>(PageEnum.Login);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, _] = useState(true);
   const [teams, setTeams] = useState([new FrcTeam("temp")]);
   //possible events to filter by
   const [eventChoices, setEventChoices] = useState<string[]>([]);
@@ -64,8 +64,6 @@ function App() {
   const [eventsChosen, setEventsSelected] = useState<string[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<FrcTeam | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
-  const [selectedMatchDataPoint, setSelectedMatchDataPoint] =
-    useState<MatchDataPoint | null>(null);
   const teamUpdateIndex = useRef(0);
 
   const updateTeams = useCallback(
@@ -73,7 +71,7 @@ function App() {
       const scopeTeamUpdateIndex = teamUpdateIndex.current + 1;
       teamUpdateIndex.current = scopeTeamUpdateIndex;
       const newTeams = await getTeamsFromEvents(firestore, eventsChosen);
-      if (scopeTeamUpdateIndex != teamUpdateIndex.current) {
+      if (scopeTeamUpdateIndex !== teamUpdateIndex.current) {
         return;
       }
 
@@ -149,14 +147,13 @@ function App() {
 
       return () => unsubscribe();
     }
-  }, [currentPage, eventsChosen, updateTeams]); // run whenever currentPage changes
+  }, [currentPage]); // run whenever currentPage changes
 
   useEffect(() => {
     (async () => {
       updateTeams(firestore);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventsChosen]);
+  }, [updateTeams]);
 
   useEffect(() => {
     let isUpdating = false;
@@ -175,7 +172,7 @@ function App() {
     );
 
     return unsubscribe;
-  }, [updateTeams]);
+  }, []);
 
   useEffect(() => {
     applyDarkMode(darkMode);

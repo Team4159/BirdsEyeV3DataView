@@ -1,5 +1,5 @@
+import type { Firestore } from "firebase/firestore";
 import { fetchScoutedEventsData } from "../firebase/fetchScoutedData.ts";
-import { Firestore } from "firebase/firestore";
 
 export async function getTeamsFromEvents(
   firestore: Firestore,

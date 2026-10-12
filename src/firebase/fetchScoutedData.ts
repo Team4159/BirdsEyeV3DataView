@@ -2,10 +2,10 @@ import {
   collection,
   collectionGroup,
   documentId,
-  Firestore,
+  type Firestore,
   getDocs,
+  type QuerySnapshot,
   query,
-  QuerySnapshot,
   where,
 } from "firebase/firestore";
 import { FrcTeam } from "../util/FrcTeam";

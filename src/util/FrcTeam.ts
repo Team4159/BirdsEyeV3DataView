@@ -1,4 +1,4 @@
-import { MatchData } from "./matchData";
+import type { MatchData } from "./matchData";
 import { compareMatchKeys } from "./matchNameUtil";
 import { AUTO_FUEL_POINTS } from "./pointValues";
 
@@ -26,7 +26,7 @@ export class FrcTeam {
       points += matchData.getPoints();
       numMatches++;
     });
-    if (numMatches == 0) return 0;
+    if (numMatches === 0) return 0;
     return points / this.matchesData.length;
   }
 
@@ -37,7 +37,7 @@ export class FrcTeam {
       points += matchData.getAutoPoints();
       numMatches++;
     });
-    if (numMatches == 0) return 0;
+    if (numMatches === 0) return 0;
     return points / this.matchesData.length;
   }
 
@@ -48,7 +48,7 @@ export class FrcTeam {
       points += matchData.getAutoFuels() * AUTO_FUEL_POINTS;
       numMatches++;
     });
-    if (numMatches == 0) return 0;
+    if (numMatches === 0) return 0;
     return points / this.matchesData.length;
   }
 
@@ -59,7 +59,7 @@ export class FrcTeam {
       points += matchData.getTeleopPoints();
       numMatches++;
     });
-    if (numMatches == 0) return 0;
+    if (numMatches === 0) return 0;
     return points / this.matchesData.length;
   }
 
@@ -70,7 +70,7 @@ export class FrcTeam {
       points += matchData.getClimbPoints();
       numMatches++;
     });
-    if (numMatches == 0) return 0;
+    if (numMatches === 0) return 0;
     return points / this.matchesData.length;
   }
 

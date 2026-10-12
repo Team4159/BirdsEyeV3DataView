@@ -1,4 +1,4 @@
-import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
+import { type CredentialResponse, GoogleLogin } from "@react-oauth/google";
 import { useState } from "react";
 
 type LoginPageProps = {
