@@ -214,7 +214,7 @@ function App() {
               credentialResponse.credential,
             );
             await signInWithCredential(auth, credential);
-            setCurrentPage("home");
+            setCurrentPage(PageEnum.Settings);
           }}
         />
       )}
