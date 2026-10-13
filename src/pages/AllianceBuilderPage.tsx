@@ -32,6 +32,13 @@ const EASE = 0.3;
 
 type Box = { left: number; top: number; width: number; height: number };
 
+type TeamAverages = {
+  total: number;
+  auto: number;
+  teleop: number;
+  climb: number;
+};
+
 type Board = {
   // row-major: slots[alliance * PICK_COLUMNS.length + pick]
   slots: (string | null)[];
@@ -94,6 +101,15 @@ function statColor(value: number, range: DataRange) {
   return getColor(value, range);
 }
 
+// slots are neighbors when they touch, including diagonally, like adjacent cells in minesweeper
+function isNeighborSlot(a: number, b: number) {
+  const columns = PICK_COLUMNS.length;
+  return (
+    Math.abs(Math.floor(a / columns) - Math.floor(b / columns)) <= 1 &&
+    Math.abs((a % columns) - (b % columns)) <= 1
+  );
+}
+
 function relativeTo(box: Box, origin: DOMRect): Box {
   return {
     left: box.left - origin.left,
@@ -154,10 +170,24 @@ export function AllianceBuilderPage({
   );
   // how the next commit moves chips: reset and auto fill fade every chip, reorder flies them
   const motionMode = useRef<"fly" | "fade">("fly");
+  // set when a drop swaps two slotted teams in neighboring slots, so both fly even if they change rows
+  const swapCommit = useRef(false);
 
   const names = useMemo(() => teams.map((team) => team.getTeamName()), [teams]);
-  const teamsByName = useMemo(
-    () => new Map(teams.map((team) => [team.getTeamName(), team])),
+  // averages are computed once per teams change, not on every render or hover
+  const teamAverages = useMemo(
+    () =>
+      new Map(
+        teams.map((team) => [
+          team.getTeamName(),
+          {
+            total: team.getAvgPoints(),
+            auto: team.getAvgAutoPoints(),
+            teleop: team.getAvgTeleopPoints(),
+            climb: team.getAvgClimbPoints(),
+          },
+        ]),
+      ),
     [teams],
   );
   // same ordering as TeamsDisplay: highest average points first
@@ -165,10 +195,14 @@ export function AllianceBuilderPage({
     () =>
       new Map(
         [...teams]
-          .sort((a, b) => b.getAvgPoints() - a.getAvgPoints())
+          .sort(
+            (a, b) =>
+              (teamAverages.get(b.getTeamName())?.total ?? 0) -
+              (teamAverages.get(a.getTeamName())?.total ?? 0),
+          )
           .map((team, index) => [team.getTeamName(), index + 1]),
       ),
-    [teams],
+    [teams, teamAverages],
   );
   const label = (name: string) =>
     `${name.substring(3)} (#${rankByName.get(name)})`;
@@ -215,23 +249,40 @@ export function AllianceBuilderPage({
     // the fade mode applies only to the commit that requested it
     const fadeAll = motionMode.current === "fade";
     motionMode.current = "fly";
+    const swapping = swapCommit.current;
+    swapCommit.current = false;
     const next = new Map<string, Box>();
 
-    card.querySelectorAll<HTMLElement>("[data-team]").forEach((element) => {
-      const team = element.dataset.team ?? "";
-      const painted = relativeTo(element.getBoundingClientRect(), origin);
-      const animations = element.getAnimations();
+    const elements = Array.from(
+      card.querySelectorAll<HTMLElement>("[data-team]"),
+    );
+    // reads run in batches before any writes, so the browser lays out once per commit instead of once per chip
+    const painted = elements.map((element) =>
+      relativeTo(element.getBoundingClientRect(), origin),
+    );
+    const animationsByElement = elements.map((element) =>
+      element.getAnimations(),
+    );
+    for (const animations of animationsByElement) {
       for (const animation of animations) {
         animation.cancel();
       }
-      const now = relativeTo(element.getBoundingClientRect(), origin);
+    }
+    const nowRects = elements.map((element) =>
+      relativeTo(element.getBoundingClientRect(), origin),
+    );
+
+    elements.forEach((element, index) => {
+      const team = element.dataset.team ?? "";
+      const animations = animationsByElement[index];
+      const now = nowRects[index];
       next.set(team, now);
 
       const from =
         landed?.team === team
           ? relativeTo(landed.box, origin)
           : animations.length > 0
-            ? painted
+            ? painted[index]
             : boxes.current.get(team);
       if (!from || reduceMotion) {
         return;
@@ -252,7 +303,7 @@ export function AllianceBuilderPage({
       const wrapped =
         Math.abs(from.top - now.top) > 1 ||
         Math.abs(from.left - now.left) > now.width * 1.5;
-      if (landed?.team !== team && (fadeAll || wrapped)) {
+      if (landed?.team !== team && (fadeAll || (wrapped && !swapping))) {
         element.animate([{ opacity: 0 }, { opacity: 1 }], {
           duration: MOVE_MS,
         });
@@ -295,26 +346,19 @@ export function AllianceBuilderPage({
     boxes.current = next;
   });
 
-  function moveToSlot(team: string, target: number, commit: boolean) {
-    setBoard((prev) => {
-      const from = prev.slots.indexOf(team);
-      if (from === target) {
-        return prev;
-      }
-      // hovering over a filled slot does nothing; the replacement happens on release
-      if (prev.slots[target] && !commit) {
-        return prev;
-      }
-      const slots = [...prev.slots];
-      const displaced = prev.slots[target];
-      if (from !== -1) {
-        // a slotted team dropped on another slot swaps places with that team
-        slots[from] = displaced;
-      }
-      // a pool team dropped on an occupied slot replaces it, so the displaced team returns to the pool
-      slots[target] = team;
-      return { ...prev, slots };
-    });
+  // places a team on release, from the board as it was when the drag started; a slotted team swaps with the team it lands on
+  function placeInSlot(base: Board, team: string, target: number): Board {
+    const from = base.slots.indexOf(team);
+    if (from === target) {
+      return base;
+    }
+    const slots = [...base.slots];
+    if (from !== -1) {
+      slots[from] = base.slots[target];
+    }
+    // a pool team dropped on an occupied slot replaces it, so the displaced team returns to the pool
+    slots[target] = team;
+    return { ...base, slots };
   }
 
   // index in the pool where a drop at (x, y) lands, found from the pool chips' current positions
@@ -453,19 +497,18 @@ export function AllianceBuilderPage({
         }
       }
       setOverPool(key === "pool");
+      // index -1 previews a slotted team leaving its alliance, whether it's over the pool or over no box
       const hovered =
         key !== undefined && key !== "pool"
           ? { team, index: Number(key) }
-          : null;
+          : fromSlot
+            ? { team, index: -1 }
+            : null;
       setHoverSlot((prev) =>
         prev?.team === hovered?.team && prev?.index === hovered?.index
           ? prev
           : hovered,
       );
-      // a pool chip only lands in a slot on release, so the pool keeps its gap while dragging
-      if (fromSlot && key !== undefined && key !== "pool") {
-        moveToSlot(team, Number(key), false);
-      }
     };
 
     const onTouchMove = (move: TouchEvent) => {
@@ -488,10 +531,21 @@ export function AllianceBuilderPage({
 
     const onUp = (up: PointerEvent) => {
       stop();
+
       if (hoverKey === "pool") {
         moveToPool(team, poolIndexAt(up.clientX, up.clientY, team));
       } else if (hoverKey !== undefined) {
-        moveToSlot(team, Number(hoverKey), true);
+        const target = Number(hoverKey);
+        const displaced = startBoard.slots[target];
+        const swap = fromSlot && !!displaced && displaced !== team;
+        const neighbors =
+          swap && isNeighborSlot(startBoard.slots.indexOf(team), target);
+        swapCommit.current = neighbors;
+        // a swap between non-neighboring slots fades the displaced team; the dropped team always lands
+        if (swap && !neighbors) {
+          motionMode.current = "fade";
+        }
+        setBoard((prev) => placeInSlot(prev, team, target));
       } else {
         setBoard(startBoard);
       }
@@ -529,16 +583,16 @@ export function AllianceBuilderPage({
       ? alliancePicks.slice(0, 3)
       : alliancePicks;
     const members = counted.flatMap((name) => {
-      const team = name ? teamsByName.get(name) : undefined;
-      return team ? [team] : [];
+      const averages = name ? teamAverages.get(name) : undefined;
+      return averages ? [averages] : [];
     });
-    const sum = (get: (team: FrcTeam) => number) =>
-      members.reduce((total, team) => total + get(team), 0);
+    const sum = (get: (averages: TeamAverages) => number) =>
+      members.reduce((total, averages) => total + get(averages), 0);
     return {
-      total: sum((team) => team.getAvgPoints()),
-      auto: sum((team) => team.getAvgAutoPoints()),
-      teleop: sum((team) => team.getAvgTeleopPoints()),
-      climb: sum((team) => team.getAvgClimbPoints()),
+      total: sum((averages) => averages.total),
+      auto: sum((averages) => averages.auto),
+      teleop: sum((averages) => averages.teleop),
+      climb: sum((averages) => averages.climb),
     };
   }
 
@@ -546,11 +600,17 @@ export function AllianceBuilderPage({
   const statSlots = [...board.slots];
   if (hoverSlot) {
     const from = statSlots.indexOf(hoverSlot.team);
-    const displaced = statSlots[hoverSlot.index];
-    if (from !== -1) {
-      statSlots[from] = displaced;
+    if (hoverSlot.index === -1) {
+      if (from !== -1) {
+        statSlots[from] = null;
+      }
+    } else {
+      const displaced = statSlots[hoverSlot.index];
+      if (from !== -1) {
+        statSlots[from] = displaced;
+      }
+      statSlots[hoverSlot.index] = hoverSlot.team;
     }
-    statSlots[hoverSlot.index] = hoverSlot.team;
   }
   const allStats = ALLIANCE_IDS.map((_, alliance) =>
     allianceStats(alliance, statSlots),
