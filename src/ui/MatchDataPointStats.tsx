@@ -1,13 +1,13 @@
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
 import type { MatchDataPoint } from "../util/matchDataPoint";
 
-type Props = {
+type MatchDataPointStatsProps = {
   matchDataPoint: MatchDataPoint;
 };
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-export const MatchDataPointStats: React.FC<Props> = ({ matchDataPoint }) => {
+export const MatchDataPointStats = ({ matchDataPoint }: MatchDataPointStatsProps) => {
   return (
     <div className="matchStats">
       <div className="statRow">

@@ -4,99 +4,17 @@
     box-sizing: border-box;
 }
 
-.login-button-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-}
-
-.card {
-    background: var(--card);
-    border-radius: 14px;
-    padding: 18px;
-    margin-left: auto;
-    margin-right: auto;
-    margin-bottom: 18px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    max-width: var(--card-max-width);
-}
-
-.wide-card {
-    background: var(--card);
-    border-radius: 14px;
-    padding: 18px;
-    margin-left: auto;
-    margin-right: auto;
-    margin-bottom: auto;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    display: grid;
-    height: 100vh;
-}
-
-.xy-scroll-container {
-    background-color: var(--bg);
-    overflow: auto;
-    margin-top: 18px;
-    padding: 10px;
-}
-
-.teams-display {
-    overflow: auto;
-    white-space: nowrap;
-    width: 100%;
-}
-
-.teams-display-row {
-    display: grid;
-    grid-template-columns: repeat(6, 25%);
-    column-gap: 8px;
-}
-
-.teams-display-header {
-    display: inline-block;
-    font-size: 20px;
-    text-align: center;
-    margin-left: 4px;
-    margin-right: 4px;
-    width: 100%;
-}
-
-.teams-display-item {
-    display: inline-block;
-    text-align: center;
-    background-color: var(--card);
+button {
+    background: var(--button);
+    color: var(--text);
+    border: none;
     border-radius: 8px;
-    margin: 4px;
-    font-size: 20px;
-    min-height: 30px;
-    font-weight: bold;
-    min-width: 40px;
-    width: 100%;
-}
-
-.navBar {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-
-    padding: 10px;
-    margin-left: auto;
-    margin-right: auto;
-    margin-bottom: 16px;
-
-    background: var(--card);
-    border-radius: 12px;
-
-    max-width: var(--card-max-width);
-}
-
-.navBar button {
-    flex: 1;
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 input,
@@ -129,6 +47,94 @@ h3 {
     font-size: 1rem;
 }
 
+.login-button-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 18px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 18px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    max-width: var(--card-max-width);
+}
+
+.wide-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 18px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    display: grid;
+    height: 100vh;
+    max-width: calc(var(--card-max-width) * 2);
+}
+
+.xy-scroll-container {
+    background-color: var(--bg);
+    overflow: auto;
+    margin-top: 18px;
+    padding: 10px;
+}
+
+.teams-display {
+    overflow: auto;
+    white-space: nowrap;
+    width: 100%;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-bottom: 12px;
+}
+
+.teams-display-row {
+    display: grid;
+    grid-template-columns: 60px minmax(120px, 1fr) 60px repeat(4, minmax(120px, 1fr));
+    column-gap: 8px;
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    width: max-content;
+    min-width: calc(100% + 24px);
+    margin-left: -12px;
+    padding-left: 12px;
+    padding-right: 12px;
+    overflow: visible;
+}
+
+.teams-display-header {
+    display: inline-block;
+    font-size: 20px;
+    text-align: center;
+    margin-left: 4px;
+    margin-right: 4px;
+    width: 100%;
+}
+
+.teams-display-item {
+    display: inline-block;
+    text-align: center;
+    background-color: var(--card);
+    border-radius: 8px;
+    margin: 4px;
+    font-size: 20px;
+    min-height: 30px;
+    font-weight: bold;
+    min-width: 40px;
+    width: 100%;
+}
+
 .datatable {
     background-color: var(--card);
     display: flex;
@@ -153,6 +159,30 @@ h3 {
     font-weight: bold;
     min-width: 40px;
     text-align: center;
+}
+
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+
+    padding: 10px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 16px;
+
+    background: var(--card);
+    border-radius: 12px;
+
+    max-width: var(--card-max-width);
+}
+
+.navbar button {
+    flex: 1;
 }
 
 .grid-container {
@@ -184,19 +214,6 @@ a {
 
 a:hover {
     color: #535bf2;
-}
-
-button {
-    background: var(--button);
-    color: var(--text);
-    border: none;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background 0.15s ease;
-    position: relative;
-    overflow: hidden;
 }
 
 button::after {
@@ -298,7 +315,7 @@ button:focus-visible {
 .square-button {
     width: auto;
     aspect-ratio: 1;
-    flex: none !important;
+    flex: none;
 }
 
 .event-button.yes {
@@ -312,4 +329,174 @@ button:focus-visible {
 .text-container {
     overflow-wrap: normal;
     word-break: normal;
+}
+
+.alliance-grid {
+    display: grid;
+    grid-template-columns: 60px repeat(4, minmax(120px, 1fr)) minmax(240px, 1.5fr);
+    gap: 6px;
+    margin-top: 16px;
+}
+
+.alliance-header {
+    text-align: center;
+    font-weight: bold;
+}
+
+.alliance-builder {
+    height: auto;
+    overflow-x: auto;
+}
+
+.alliance-builder.dragging .alliance-chip:hover {
+    filter: none;
+}
+
+.alliance-builder.dragging .alliance-chip.yes:hover {
+    background: var(--accent);
+}
+
+.alliance-builder.dragging .alliance-chip.no:hover {
+    background: var(--button);
+}
+
+.alliance-builder.dragging .alliance-chip:active::after {
+    opacity: 0;
+}
+
+.card-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-title-row button {
+    font-weight: bold;
+}
+
+.card-title-row button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--button);
+}
+
+.alliance-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.alliance-title-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.alliance-title-row button {
+    font-weight: bold;
+}
+
+.alliance-title-row button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--button);
+}
+
+.alliance-chip {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.alliance-drag-overlay {
+    position: fixed;
+    left: 0;
+    top: 0;
+    margin: 0;
+    z-index: 1000;
+    pointer-events: none;
+    cursor: grabbing;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+fieldset.alliance-slot,
+fieldset.grid-container {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+fieldset.grid-container {
+    border: none;
+    margin-top: 16px;
+}
+
+fieldset.grid-container.pool-empty {
+    min-height: 60px;
+}
+
+fieldset.grid-container.pool-drop {
+    outline: 2px dashed currentColor;
+    outline-offset: 6px;
+    border-radius: 8px;
+}
+
+.alliance-rank {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.alliance-slot {
+    display: flex;
+    min-height: 60px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+}
+
+.alliance-slot button {
+    flex: 1;
+    min-height: 60px;
+    font-weight: 600;
+}
+
+.alliance-slot.drop-target {
+    filter: brightness(130%);
+    background-color: color-mix(in srgb, var(--card) 85%, white);
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--border) 50%, white);
+}
+
+.alliance-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px;
+    border-radius: 8px;
+    background: var(--button);
+}
+
+.alliance-stat-total {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.alliance-stat-label {
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.alliance-stat-breakdown {
+    display: flex;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    gap: 12px;
+    font-size: 16px;
+    font-weight: 600;
 }

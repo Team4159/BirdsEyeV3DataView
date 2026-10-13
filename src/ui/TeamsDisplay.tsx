@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useMemo } from "react";
 import type { FrcTeam } from "../util/FrcTeam";
 
-type DataRange = {
+export type DataRange = {
   min: number;
   max: number;
 };
@@ -11,19 +11,13 @@ type DataRangeKey =
   | "teleopAvgScore"
   | "climbAvgScore"
   | "dataPoints";
-function createDataRange(): DataRange {
-  const dataRange: DataRange = {
-    min: 0,
+export function createDataRange(): DataRange {
+  return {
+    min: Number.MAX_SAFE_INTEGER,
     max: 0,
   };
-  resetDataRange(dataRange);
-  return dataRange;
 }
-function resetDataRange(dataRange: DataRange) {
-  dataRange.min = Number.MAX_SAFE_INTEGER;
-  dataRange.max = 0;
-}
-function updateDataRange(dataRange: DataRange, data: number) {
+export function updateDataRange(dataRange: DataRange, data: number) {
   if (data > dataRange.max) {
     dataRange.max = data;
   }
@@ -31,19 +25,6 @@ function updateDataRange(dataRange: DataRange, data: number) {
     dataRange.min = data;
   }
 }
-const dataRanges: Readonly<Record<DataRangeKey, DataRange>> = {
-  avgScore: createDataRange(),
-  autoAvgScore: createDataRange(),
-  teleopAvgScore: createDataRange(),
-  climbAvgScore: createDataRange(),
-  dataPoints: createDataRange(),
-};
-
-type Props = {
-  teams: FrcTeam[];
-  events: string[];
-  onTeamClick: (team: FrcTeam) => void;
-};
 
 const interpolateColor = (
   startColor: [number, number, number],
@@ -56,15 +37,24 @@ const interpolateColor = (
   return `rgb(${r}, ${g}, ${b})`;
 };
 
-function getColor(score: number, dataRange: DataRange) {
+export function getColor(score: number, dataRange: DataRange) {
   const start: [number, number, number] = [255, 0, 0]; // Red
   const end: [number, number, number] = [0, 255, 0]; // Green
-  const normalizedScore =
-    (score - dataRange.min) / (dataRange.max - dataRange.min);
+  const span = dataRange.max - dataRange.min || 1;
+  const normalizedScore = (score - dataRange.min) / span;
   return interpolateColor(start, end, normalizedScore);
 }
 
-function calculateHighestLowestScores(teams: FrcTeam[]) {
+function calculateDataRanges(
+  teams: FrcTeam[],
+): Readonly<Record<DataRangeKey, DataRange>> {
+  const dataRanges: Record<DataRangeKey, DataRange> = {
+    avgScore: createDataRange(),
+    autoAvgScore: createDataRange(),
+    teleopAvgScore: createDataRange(),
+    climbAvgScore: createDataRange(),
+    dataPoints: createDataRange(),
+  };
   teams.forEach((team) => {
     updateDataRange(dataRanges.avgScore, team.getAvgPoints());
     updateDataRange(dataRanges.autoAvgScore, team.getAvgAutoPoints());
@@ -72,36 +62,48 @@ function calculateHighestLowestScores(teams: FrcTeam[]) {
     updateDataRange(dataRanges.climbAvgScore, team.getAvgClimbPoints());
     updateDataRange(dataRanges.dataPoints, team.getDataPoints());
   });
+  return dataRanges;
 }
 
-export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
-  useEffect(() => {
-    Object.values(dataRanges).forEach((dataRange) => {
-      resetDataRange(dataRange);
-    });
-  }, []);
-  calculateHighestLowestScores(teams);
+type TeamsDisplayProps = {
+  teams: FrcTeam[];
+  onTeamClick: (team: FrcTeam) => void;
+};
+
+export const TeamsDisplay = ({ teams, onTeamClick }: TeamsDisplayProps) => {
+  const dataRanges = useMemo(() => calculateDataRanges(teams), [teams]);
   return (
     <div className="teams-display">
       <div className="teams-display-row">
+        <div className="teams-display-header">Rank</div>
         <div className="teams-display-header">Team</div>
+        <div className="teams-display-header">Data</div>
         <div className="teams-display-header">Total</div>
         <div className="teams-display-header">Auto</div>
         <div className="teams-display-header">Teleop</div>
         <div className="teams-display-header">Climb</div>
-        <div className="teams-display-header">Data Points</div>
       </div>
       {teams
         .sort((a, b) => b.getAvgPoints() - a.getAvgPoints())
-        .map((team) => (
-          <div
+        .map((team, index) => (
+          <button
             key={team.getTeamName()}
+            type="button"
             className="teams-display-row"
             onClick={() => onTeamClick(team)}
             style={{ cursor: "pointer" }}
           >
+            <div className="teams-display-item">#{index + 1}</div>
             <div className="teams-display-item">
               {team.getTeamName().substring(3)}
+            </div>
+            <div
+              style={{
+                color: getColor(team.getDataPoints(), dataRanges.dataPoints),
+              }}
+              className="teams-display-item"
+            >
+              {team.getDataPoints()}
             </div>
             <div
               style={{
@@ -144,15 +146,7 @@ export const TeamsDisplay: React.FC<Props> = ({ teams, onTeamClick }) => {
             >
               {team.getAvgClimbPoints().toFixed(2)}
             </div>
-            <div
-              style={{
-                color: getColor(team.getDataPoints(), dataRanges.dataPoints),
-              }}
-              className="teams-display-item"
-            >
-              {team.getDataPoints()}
-            </div>
-          </div>
+          </button>
         ))}
     </div>
   );

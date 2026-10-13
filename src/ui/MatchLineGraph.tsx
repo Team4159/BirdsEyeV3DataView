@@ -41,7 +41,7 @@ ChartJS.register(
   Legend,
 );
 
-type Props = {
+type MatchLineGraphProps = {
   team: FrcTeam;
   events: string[];
 };
@@ -60,7 +60,7 @@ const options = {
   },
 };
 
-export const MatchLineGraph: React.FC<Props> = ({ team }) => {
+export const MatchLineGraph = ({ team }: MatchLineGraphProps) => {
   const labels = team.getMatchNameArray();
 
   const data = {

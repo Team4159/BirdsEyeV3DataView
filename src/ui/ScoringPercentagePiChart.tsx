@@ -9,7 +9,7 @@ import {
   teleopFuelColor,
 } from "./colorConstants";
 
-type Props = {
+type ScoringPercentagePiChartProps = {
   autoFuel: number;
   teleopFuel: number;
   climb: number;
@@ -17,11 +17,11 @@ type Props = {
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-export const ScoringPercentagePiChart: React.FC<Props> = ({
+export const ScoringPercentagePiChart = ({
   autoFuel,
   teleopFuel,
   climb,
-}) => {
+}: ScoringPercentagePiChartProps) => {
   const data = {
     labels: ["Auto Fuels", "Teleop Fuels", "Climb (Auto + Endgame)"],
     datasets: [

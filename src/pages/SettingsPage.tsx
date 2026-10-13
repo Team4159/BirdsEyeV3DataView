@@ -1,21 +1,37 @@
 import { useState } from "react";
 
 type SettingsPageProps = {
-  eventsChosen: string[];
+  aggregateEvents: string[];
   eventChoices: string[];
-  toggleEvent: (event: string) => void;
+  displayEvents: string[];
+  toggleAggregateEvent: (event: string) => void;
+  toggleDisplayEvent: (event: string) => void;
+  toggleAllAggregateEvents: () => void;
+  toggleAllDisplayEvents: () => void;
 };
 
 export function SettingsPage({
-  eventsChosen: events,
+  aggregateEvents,
   eventChoices,
-  toggleEvent,
+  displayEvents,
+  toggleAggregateEvent,
+  toggleDisplayEvent,
+  toggleAllAggregateEvents,
+  toggleAllDisplayEvents,
 }: SettingsPageProps) {
   const [searchValue, setSearchValue] = useState("");
+  const [displaySearchValue, setDisplaySearchValue] = useState("");
   return (
     <div>
       <div className="card">
-        <h1>Choose Events</h1>
+        <div className="card-title-row">
+          <h1>Aggregate Events</h1>
+          <button type="button" onClick={toggleAllAggregateEvents}>
+            {aggregateEvents.length === eventChoices.length
+              ? "Clear All"
+              : "Select All"}
+          </button>
+        </div>
 
         <input
           placeholder="Search"
@@ -26,15 +42,73 @@ export function SettingsPage({
         <div className="grid-container">
           {eventChoices.map((event) => {
             if (!event.toLowerCase().includes(searchValue.toLowerCase())) {
-              return;
+              return <div></div>;
             }
-            const className = `button event-button ${events.includes(event) ? "yes" : "no"}`
+            const className = `button event-button ${aggregateEvents.includes(event) ? "yes" : "no"}`;
             return (
-              <button className={className} onClick={() => toggleEvent(event)}>
+              <button
+                type="button"
+                key={event}
+                className={className}
+                onClick={() => toggleAggregateEvent(event)}
+              >
                 <h4>{event}</h4>
               </button>
             );
           })}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title-row">
+          <h1>Display Events</h1>
+          <button
+            type="button"
+            disabled={aggregateEvents.length === 0}
+            onClick={toggleAllDisplayEvents}
+          >
+            {displayEvents.length === aggregateEvents.length
+              ? "Clear All"
+              : "Select All"}
+          </button>
+        </div>
+
+        {aggregateEvents.length > 0 && (
+          <input
+            placeholder="Search"
+            value={displaySearchValue}
+            onChange={(input) => setDisplaySearchValue(input.target.value)}
+          ></input>
+        )}
+
+        {aggregateEvents.length === 0 ? (
+          <p>
+            No aggregate events selected. Choose events under Aggregate Events.
+          </p>
+        ) : (
+          displayEvents.length === 0 && (
+            <p>No events selected. No teams will be displayed.</p>
+          )
+        )}
+
+        <div className="grid-container">
+          {aggregateEvents
+            .filter((event) =>
+              event.toLowerCase().includes(displaySearchValue.toLowerCase()),
+            )
+            .map((event) => {
+              const className = `button event-button ${displayEvents.includes(event) ? "yes" : "no"}`;
+              return (
+                <button
+                  type="button"
+                  key={event}
+                  className={className}
+                  onClick={() => toggleDisplayEvent(event)}
+                >
+                  <h4>{event}</h4>
+                </button>
+              );
+            })}
         </div>
       </div>
     </div>

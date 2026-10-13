@@ -23,7 +23,7 @@ export async function fetchScoutedEventsData(
   firestore: Firestore,
   events: string[],
 ): Promise<Map<string, FrcTeam>> {
-  if (events.length == 0) {
+  if (events.length === 0) {
     return new Map();
   }
 
@@ -32,7 +32,7 @@ export async function fetchScoutedEventsData(
       query(
         collectionGroup(firestore, "datasets"),
         where(documentId(), ">", `events/${event}`),
-        where(documentId(), "<", `events/${event}` + "\uf8ff"),
+        where(documentId(), "<", `events/${event}\uf8ff`),
       ),
     ),
   );
@@ -60,7 +60,9 @@ export async function fetchScoutedEventsData(
   dataMap.forEach((matchDataMap, team) => {
     const frcTeam = new FrcTeam(team);
     teamsMap.set(team, frcTeam);
-    matchDataMap.forEach((matchData) => frcTeam.addMatch(matchData));
+    matchDataMap.forEach((matchData) => {
+      frcTeam.addMatch(matchData);
+    });
   });
 
   return teamsMap;
