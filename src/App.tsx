@@ -176,30 +176,21 @@ function App() {
     }
   }, [currentPage]); // run whenever currentPage changes
 
-  useEffect(() => {
-    (async () => {
-      updateTeams(firestore);
-    })();
-  }, [updateTeams]);
 
   useEffect(() => {
     let isUpdating = false;
-
     const unsubscribe = onSnapshot(
       collectionGroup(firestore, "datasets"),
       async () => {
         if (isUpdating) return;
-
         isUpdating = true;
-
-        // await updateTeams(firestore);
-
+        await updateTeams(firestore);
         isUpdating = false;
       },
     );
 
     return unsubscribe;
-  }, []);
+  }, [updateTeams]);
 
   useEffect(() => {
     applyDarkMode(darkMode);
