@@ -306,10 +306,12 @@ export function AllianceBuilderPage({
         return prev;
       }
       const slots = [...prev.slots];
+      const displaced = prev.slots[target];
       if (from !== -1) {
-        slots[from] = null;
+        // a slotted team dropped on another slot swaps places with that team
+        slots[from] = displaced;
       }
-      // an occupied slot's team is replaced, so it returns to the pool
+      // a pool team dropped on an occupied slot replaces it, so the displaced team returns to the pool
       slots[target] = team;
       return { ...prev, slots };
     });
@@ -356,7 +358,7 @@ export function AllianceBuilderPage({
     });
   }
 
-  // fills empty boxes in draft order: captains take seeds 1-8, then each pick round snakes (8-1 on the second pick)
+  // fills empty boxes in draft order: each seed takes its captain then its 1st pick before the next seed, then the 2nd pick snakes (8-1) and the 3rd pick goes 1-8
   function autoFill() {
     motionMode.current = "fade";
     setBoard((prev) => {
@@ -365,16 +367,25 @@ export function AllianceBuilderPage({
         .sort((a, b) => (rankByName.get(a) ?? 0) - (rankByName.get(b) ?? 0))
         .filter((name) => !slots.includes(name));
       const forward = Array.from({ length: ALLIANCE_COUNT }, (_, i) => i);
+      const draftOrder: number[] = [];
+      for (const alliance of forward) {
+        draftOrder.push(
+          alliance * PICK_COLUMNS.length,
+          alliance * PICK_COLUMNS.length + 1,
+        );
+      }
+      for (const alliance of [...forward].reverse()) {
+        draftOrder.push(alliance * PICK_COLUMNS.length + 2);
+      }
+      for (const alliance of forward) {
+        draftOrder.push(alliance * PICK_COLUMNS.length + 3);
+      }
       let next = 0;
-      for (let column = 0; column < PICK_COLUMNS.length; column++) {
-        const reversed = column !== 0 && column % 2 === 0;
-        for (const alliance of reversed ? [...forward].reverse() : forward) {
-          const index = alliance * PICK_COLUMNS.length + column;
-          if (slots[index] || next >= available.length) {
-            continue;
-          }
-          slots[index] = available[next++];
+      for (const index of draftOrder) {
+        if (slots[index] || next >= available.length) {
+          continue;
         }
+        slots[index] = available[next++];
       }
       return { ...prev, slots };
     });
@@ -515,8 +526,8 @@ export function AllianceBuilderPage({
     const alliancePicks = slots.slice(start, start + PICK_COLUMNS.length);
     // the 3rd pick only counts once the alliance has all four teams
     const counted = alliancePicks.every(Boolean)
-      ? alliancePicks
-      : alliancePicks.slice(0, 3);
+      ? alliancePicks.slice(0, 3)
+      : alliancePicks;
     const members = counted.flatMap((name) => {
       const team = name ? teamsByName.get(name) : undefined;
       return team ? [team] : [];
@@ -535,8 +546,9 @@ export function AllianceBuilderPage({
   const statSlots = [...board.slots];
   if (hoverSlot) {
     const from = statSlots.indexOf(hoverSlot.team);
+    const displaced = statSlots[hoverSlot.index];
     if (from !== -1) {
-      statSlots[from] = null;
+      statSlots[from] = displaced;
     }
     statSlots[hoverSlot.index] = hoverSlot.team;
   }
@@ -667,19 +679,25 @@ export function AllianceBuilderPage({
                   <span
                     style={{ color: statColor(stats.auto, statRanges.auto) }}
                   >
-                    Auto {stats.auto.toFixed(2)}
+                    {stats.auto.toFixed(2)}
+                    <br />
+                    Auto
                   </span>
                   <span
                     style={{
                       color: statColor(stats.teleop, statRanges.teleop),
                     }}
                   >
-                    Teleop {stats.teleop.toFixed(2)}
+                    {stats.teleop.toFixed(2)}
+                    <br />
+                    Teleop
                   </span>
                   <span
                     style={{ color: statColor(stats.climb, statRanges.climb) }}
                   >
-                    Climb {stats.climb.toFixed(2)}
+                    {stats.climb.toFixed(2)}
+                    <br />
+                    Climb
                   </span>
                 </div>
               </div>

@@ -176,7 +176,6 @@ function App() {
     }
   }, [currentPage]); // run whenever currentPage changes
 
-
   useEffect(() => {
     let isUpdating = false;
     const unsubscribe = onSnapshot(
@@ -263,23 +262,23 @@ function App() {
         />
       )}
 
-      {currentPage === PageEnum.EventsOverview && (
+      <div hidden={currentPage !== PageEnum.EventsOverview}>
         <EventsOverviewPage
           eventChoices={eventChoices}
           aggregateEvents={aggregateEvents}
           displayEvents={displayEvents}
           teams={teams}
         />
-      )}
+      </div>
 
-      {currentPage === PageEnum.AllianceBuilder && (
-              <AllianceBuilderPage
-                eventChoices={eventChoices}
-                aggregateEvents={aggregateEvents}
-                displayEvents={displayEvents}
-                teams={teams}
-              />
-            )}
+      <div hidden={currentPage !== PageEnum.AllianceBuilder}>
+        <AllianceBuilderPage
+          eventChoices={eventChoices}
+          aggregateEvents={aggregateEvents}
+          displayEvents={displayEvents}
+          teams={teams}
+        />
+      </div>
     </main>
   );
 }
