@@ -27,7 +27,7 @@ import { logOut } from "./firebase/auth";
 import { AllianceBuilderPage } from "./pages/AllianceBuilderPage";
 import { EventsOverviewPage } from "./pages/EventsOverviewPage";
 import { LoginPage } from "./pages/LoginPage";
-import { PageEnum } from "./pages/PageEnum";
+import { Page } from "./pages/Page";
 import { SettingsPage } from "./pages/SettingsPage";
 import { applyDarkMode } from "./ui/theme";
 import { FrcTeam } from "./util/FrcTeam";
@@ -54,7 +54,7 @@ const auth = getAuth(app);
 
 function App() {
   const [autoLoginDone, setAutoLoginDone] = useState(false);
-  const [currentPage, setCurrentPage] = useState<string>(PageEnum.Login);
+  const [currentPage, setCurrentPage] = useState<Page>(Page.Login);
   const [darkMode, _] = useState(true);
   const [teams, setTeams] = useState([new FrcTeam("temp")]);
   //possible events to filter by
@@ -155,15 +155,15 @@ function App() {
     onAuthStateChanged(auth, (user) => {
       setAutoLoginDone(true);
       if (user != null) {
-        setCurrentPage(PageEnum.Settings);
+        setCurrentPage(Page.Settings);
       } else {
-        setCurrentPage(PageEnum.Login);
+        setCurrentPage(Page.Login);
       }
     });
   }, []);
 
   useEffect(() => {
-    if (currentPage !== PageEnum.Login) {
+    if (currentPage !== Page.Login) {
       const unsubscribe = onSnapshot(
         collection(firestore, "events"),
         async () => {
@@ -197,24 +197,24 @@ function App() {
 
   return (
     <main>
-      {currentPage === PageEnum.Login && autoLoginDone && (
+      {currentPage === Page.Login && autoLoginDone && (
         <LoginPage
           onSuccess={async (credentialResponse) => {
             const credential = GoogleAuthProvider.credential(
               credentialResponse.credential,
             );
             await signInWithCredential(auth, credential);
-            setCurrentPage(PageEnum.Settings);
+            setCurrentPage(Page.Settings);
           }}
         />
       )}
 
-      {currentPage !== PageEnum.Login && (
+      {currentPage !== Page.Login && (
         <nav className="navbar">
           <button
             type="button"
             onClick={() => {
-              setCurrentPage(PageEnum.Settings);
+              setCurrentPage(Page.Settings);
             }}
           >
             <Calendars size={20} />
@@ -223,7 +223,7 @@ function App() {
           <button
             type="button"
             onClick={() => {
-              setCurrentPage(PageEnum.EventsOverview);
+              setCurrentPage(Page.EventsOverview);
             }}
           >
             <ChartNoAxesCombined size={20} />
@@ -232,7 +232,7 @@ function App() {
           <button
             type="button"
             onClick={() => {
-              setCurrentPage(PageEnum.AllianceBuilder);
+              setCurrentPage(Page.AllianceBuilder);
             }}
           >
             <ClipboardPen size={20} />
@@ -242,7 +242,7 @@ function App() {
             type="button"
             onClick={() => {
               logOut();
-              setCurrentPage(PageEnum.Login);
+              setCurrentPage(Page.Login);
             }}
           >
             <LogOut size={20} />
@@ -250,7 +250,7 @@ function App() {
         </nav>
       )}
 
-      {currentPage === PageEnum.Settings && (
+      {currentPage === Page.Settings && (
         <SettingsPage
           aggregateEvents={aggregateEvents}
           eventChoices={eventChoices}
@@ -262,7 +262,7 @@ function App() {
         />
       )}
 
-      <div hidden={currentPage !== PageEnum.EventsOverview}>
+      <div hidden={currentPage !== Page.EventsOverview}>
         <EventsOverviewPage
           eventChoices={eventChoices}
           aggregateEvents={aggregateEvents}
@@ -271,7 +271,7 @@ function App() {
         />
       </div>
 
-      <div hidden={currentPage !== PageEnum.AllianceBuilder}>
+      <div hidden={currentPage !== Page.AllianceBuilder}>
         <AllianceBuilderPage
           eventChoices={eventChoices}
           aggregateEvents={aggregateEvents}
