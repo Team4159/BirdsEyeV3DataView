@@ -248,50 +248,6 @@ button:focus-visible {
     outline: 4px auto -webkit-focus-ring-color;
 }
 
-.redAlliance {
-    background: #b91c1c;
-    color: white;
-}
-
-.blueAlliance {
-    background: #1d4ed8;
-    color: white;
-}
-
-.saveButton {
-    width: 100%;
-    padding: 16px;
-    font-size: 18px;
-    font-weight: 600;
-
-    border: none;
-    border-radius: 12px;
-
-    background: var(--accent);
-    color: white;
-
-    margin-top: 16px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.slidecontainer {
-    width: 100%;
-    /* ensures the container doesn't exceed card width */
-    margin: 12px 0;
-    /* optional spacing */
-}
-
-.authError {
-    color: #ef4444;
-    font-size: 14px;
-    margin-top: 6px;
-    font-weight: 500;
-}
-
 .animate-spin {
     animation: spin 1s cubic-bezier(0.17, 0.67, 0.83, 0.67) infinite;
 }
