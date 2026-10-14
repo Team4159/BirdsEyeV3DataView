@@ -3,6 +3,7 @@ import {
   ChartNoAxesCombined,
   ClipboardPen,
   LogOut,
+  Trophy,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
@@ -26,6 +27,7 @@ import {
 import { logOut } from "./firebase/auth";
 import { AllianceBuilderPage } from "./pages/AllianceBuilderPage";
 import { EventsOverviewPage } from "./pages/EventsOverviewPage";
+import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { Page } from "./pages/Page";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -241,6 +243,15 @@ function App() {
           <button
             type="button"
             onClick={() => {
+              setCurrentPage(Page.Leaderboard);
+            }}
+          >
+            <Trophy size={20} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
               logOut();
               setCurrentPage(Page.Login);
             }}
@@ -279,6 +290,14 @@ function App() {
           teams={teams}
         />
       </div>
+
+      {currentPage === Page.Leaderboard && (
+        <LeaderboardPage
+          eventChoices={eventChoices}
+          aggregateEvents={aggregateEvents}
+          displayEvents={displayEvents}
+        />
+      )}
     </main>
   );
 }

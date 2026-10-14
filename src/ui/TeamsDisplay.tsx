@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { FrcTeam } from "../util/FrcTeam";
 
 export type DataRange = {
@@ -11,12 +11,14 @@ type DataRangeKey =
   | "teleopAvgScore"
   | "climbAvgScore"
   | "dataPoints";
+
 export function createDataRange(): DataRange {
   return {
     min: Number.MAX_SAFE_INTEGER,
     max: 0,
   };
 }
+
 export function updateDataRange(dataRange: DataRange, data: number) {
   if (data > dataRange.max) {
     dataRange.max = data;
@@ -65,6 +67,12 @@ function calculateDataRanges(
   return dataRanges;
 }
 
+type TeamSortComparator = (a: FrcTeam, b: FrcTeam) => number;
+
+const TeamSortComparators: Record<string, TeamSortComparator> = {
+  Points: (a, b) => b.getAvgPoints() - a.getAvgPoints()
+} as const;
+
 type TeamsDisplayProps = {
   teams: FrcTeam[];
   onTeamClick: (team: FrcTeam) => void;
@@ -72,6 +80,9 @@ type TeamsDisplayProps = {
 
 export const TeamsDisplay = ({ teams, onTeamClick }: TeamsDisplayProps) => {
   const dataRanges = useMemo(() => calculateDataRanges(teams), [teams]);
+  const [teamSortComparator, _] = useState<TeamSortComparator>(() => TeamSortComparators.Points);
+  const sortedTeams = useMemo(() => teams.toSorted(teamSortComparator), [teams, teamSortComparator]);
+  const sortedTeamsByPoints = useMemo(() => teams.toSorted(TeamSortComparators.Points), [teams]);
   return (
     <div className="teams-display">
       <div className="teams-display-row">
@@ -83,9 +94,8 @@ export const TeamsDisplay = ({ teams, onTeamClick }: TeamsDisplayProps) => {
         <div className="teams-display-header">Teleop</div>
         <div className="teams-display-header">Climb</div>
       </div>
-      {teams
-        .sort((a, b) => b.getAvgPoints() - a.getAvgPoints())
-        .map((team, index) => (
+      {sortedTeams
+        .map((team) => (
           <button
             key={team.getTeamName()}
             type="button"
@@ -93,7 +103,7 @@ export const TeamsDisplay = ({ teams, onTeamClick }: TeamsDisplayProps) => {
             onClick={() => onTeamClick(team)}
             style={{ cursor: "pointer" }}
           >
-            <div className="teams-display-item">#{index + 1}</div>
+            <div className="teams-display-item">#{sortedTeamsByPoints.indexOf(team) + 1}</div>
             <div className="teams-display-item">
               {team.getTeamName().substring(3)}
             </div>

@@ -35,22 +35,18 @@ export function EventsOverviewPage({
     });
   }, [teams, displayEvents]);
 
-  return (
-    <div>
-      {displayEvents.length === 0 ? (
-        <div className="card">
-          <h1>Events Overview</h1>
-          <span className="text-container">{headerMessage}</span>
-        </div>
-      ) : (
-        <div className="wide-card">
-          <h1>Events Overview</h1>
-          <span className="text-container">{headerMessage}</span>
-          <div className="xy-scroll-container">
-            <TeamsDisplay teams={displayedTeams} onTeamClick={console.log} />
-          </div>
-        </div>
-      )}
+  return displayEvents.length === 0 ? (
+    <div className="card">
+      <h1>Events Overview</h1>
+      <span className="text-container">{headerMessage}</span>
+    </div>
+  ) : (
+    <div className="wide-card">
+      <h1>Events Overview</h1>
+      <span className="text-container">{headerMessage}</span>
+      <div className="xy-scroll-container">
+        <TeamsDisplay teams={displayedTeams} onTeamClick={console.log} />
+      </div>
     </div>
   );
 }
