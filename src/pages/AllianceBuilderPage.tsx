@@ -495,6 +495,12 @@ export function AllianceBuilderPage({
           drag.tone = tone;
           setDragTone(tone);
         }
+      } else {
+        drag.tw = drag.baseW;
+        drag.th = drag.baseH;
+        const tone = statSlots.indexOf(team) === -1 ? "no" : "yes";
+        drag.tone = tone;
+        setDragTone(tone);
       }
       setOverPool(key === "pool");
       // index -1 previews a slotted team leaving its alliance, whether it's over the pool or over no box
