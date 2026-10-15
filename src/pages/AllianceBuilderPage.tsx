@@ -98,7 +98,7 @@ function statColor(value: number, range: DataRange) {
   if (range.min === range.max) {
     return "rgb(0, 255, 0)";
   }
-  return getColor(value, range);
+  return getColor(value, range, false);
 }
 
 // slots are neighbors when they touch, including diagonally, like adjacent cells in minesweeper
