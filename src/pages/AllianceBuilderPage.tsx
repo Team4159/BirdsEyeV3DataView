@@ -32,6 +32,9 @@ const EASE = 0.3;
 
 type Box = { left: number; top: number; width: number; height: number };
 
+// where a chip was painted (transforms included) just before a state change, and whether one of our slides was running
+type ChipSnapshot = { box: Box; moving: boolean };
+
 type TeamAverages = {
   total: number;
   auto: number;
@@ -162,8 +165,14 @@ export function AllianceBuilderPage({
   const stopDrag = useRef<(() => void) | null>(null);
   // the touch that grabbed the chip; other fingers keep their normal scrolling
   const dragTouch = useRef<number | null>(null);
-  // chip boxes from the last commit, relative to the card
+  // resting chip boxes (no transforms) from the last animated commit, relative to the card
   const boxes = useRef(new Map<string, Box>());
+  // painted chip boxes taken right before a state change; its presence is what makes the next commit animate
+  const pendingMotion = useRef<Map<string, ChipSnapshot> | null>(null);
+  // the slides this component started, so CSS transitions and fades are never mistaken for them
+  const ownMotions = useRef(new WeakSet<Animation>());
+  // landing slides still running; the card stays unclipped until the last one ends
+  const landingFlights = useRef(0);
   // the viewport box a just-dropped chip is released from
   const landing = useRef<{ team: string; box: Box; pulse: boolean } | null>(
     null,
@@ -234,8 +243,41 @@ export function AllianceBuilderPage({
     return () => cancelAnimationFrame(frame);
   }, [dragTeam]);
 
-  // after every commit, slides each chip from its previous box (or from where a dropped chip was released) to its new box
+  // records where every chip is painted right now, transforms included. Call this immediately before a state change that moves chips.
+  function snapshotChips() {
+    const card = cardRef.current;
+    if (!card) {
+      return;
+    }
+    const origin = card.getBoundingClientRect();
+    const snapshot = new Map<string, ChipSnapshot>();
+    card.querySelectorAll<HTMLElement>("[data-team]").forEach((element) => {
+      snapshot.set(element.dataset.team ?? "", {
+        box: relativeTo(element.getBoundingClientRect(), origin),
+        moving: element
+          .getAnimations()
+          .some((animation) => ownMotions.current.has(animation)),
+      });
+    });
+    pendingMotion.current = snapshot;
+  }
+
+  // slides each chip from where it was painted before the change (or from where a dropped chip was released) to its new box.
+  // Only commits that were preceded by snapshotChips() or a drop animate; hover and tone re-renders leave running animations alone.
   useLayoutEffect(() => {
+    const snapshot = pendingMotion.current;
+    const landed = landing.current;
+    if (!snapshot && !landed) {
+      return;
+    }
+    pendingMotion.current = null;
+    landing.current = null;
+    // the fade mode applies only to the commit that requested it
+    const fadeAll = motionMode.current === "fade";
+    motionMode.current = "fly";
+    const swapping = swapCommit.current;
+    swapCommit.current = false;
+
     const card = cardRef.current;
     if (!card) {
       return;
@@ -247,26 +289,19 @@ export function AllianceBuilderPage({
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
-    const landed = landing.current;
-    landing.current = null;
-    // the fade mode applies only to the commit that requested it
-    const fadeAll = motionMode.current === "fade";
-    motionMode.current = "fly";
-    const swapping = swapCommit.current;
-    swapCommit.current = false;
     const next = new Map<string, Box>();
 
     const elements = Array.from(
       card.querySelectorAll<HTMLElement>("[data-team]"),
     );
-    // reads run in batches before any writes, so the browser lays out once per commit instead of once per chip
-    const painted = elements.map((element) =>
-      relativeTo(element.getBoundingClientRect(), origin),
+    // reads and writes run in batches, so the browser lays out once per commit instead of once per chip.
+    // Only our own slides are cancelled: fades keep playing and CSS hover transitions are left alone.
+    const running = elements.map((element) =>
+      element
+        .getAnimations()
+        .filter((animation) => ownMotions.current.has(animation)),
     );
-    const animationsByElement = elements.map((element) =>
-      element.getAnimations(),
-    );
-    for (const animations of animationsByElement) {
+    for (const animations of running) {
       for (const animation of animations) {
         animation.cancel();
       }
@@ -277,16 +312,12 @@ export function AllianceBuilderPage({
 
     elements.forEach((element, index) => {
       const team = element.dataset.team ?? "";
-      const animations = animationsByElement[index];
       const now = nowRects[index];
       next.set(team, now);
 
+      const snap = snapshot?.get(team);
       const from =
-        landed?.team === team
-          ? relativeTo(landed.box, origin)
-          : animations.length > 0
-            ? painted[index]
-            : boxes.current.get(team);
+        landed?.team === team ? relativeTo(landed.box, origin) : snap?.box;
       if (!from || reduceMotion) {
         return;
       }
@@ -302,10 +333,12 @@ export function AllianceBuilderPage({
       if (still && !pulse) {
         return;
       }
-      // a chip that wrapped to another row would sweep diagonally across the card, so fade it in instead
+      // a chip that wrapped to another row would sweep diagonally across the card, so fade it in instead.
+      // This compares resting layouts: `from` can be a mid-slide position, which says nothing about wrapping.
+      const rest = boxes.current.get(team) ?? from;
       const wrapped =
-        Math.abs(from.top - now.top) > 1 ||
-        Math.abs(from.left - now.left) > now.width * 1.5;
+        Math.abs(rest.top - now.top) > 1 ||
+        Math.abs(rest.left - now.left) > now.width * 1.5;
       if (landed?.team !== team && (fadeAll || (wrapped && !swapping))) {
         element.animate([{ opacity: 0 }, { opacity: 1 }], {
           duration: MOVE_MS,
@@ -324,7 +357,7 @@ export function AllianceBuilderPage({
         : [{ transform: start }, { transform: "none" }];
       // a chip caught mid-slide only covers the distance left, so repeated drops don't stretch its motion
       const distance = Math.hypot(dx, dy);
-      const interrupted = animations.length > 0 && !landed;
+      const interrupted = !!snap?.moving && landed?.team !== team;
       const duration = interrupted
         ? Math.min(MOVE_MS, Math.max(120, distance * MS_PER_PX))
         : Math.min(MAX_MOVE_MS, MOVE_MS + distance * MS_PER_PX);
@@ -332,17 +365,33 @@ export function AllianceBuilderPage({
         duration,
         easing: "cubic-bezier(0.2, 0, 0, 1)",
       });
+      ownMotions.current.add(motion);
       // the dropped chip paints above the pool chips it passes over while it lands
       if (landed?.team === team) {
-        const clear = () => {
-          element.style.zIndex = "";
-          card.style.overflow = "";
+        landingFlights.current++;
+        let released = false;
+        // runs once, whether the slide finishes or is cancelled by a later commit.
+        // By then the next landing has already started, so the checks below leave its styles alone.
+        const release = () => {
+          if (released) {
+            return;
+          }
+          released = true;
+          landingFlights.current--;
+          const stillSliding = element
+            .getAnimations()
+            .some((animation) => ownMotions.current.has(animation));
+          if (!stillSliding) {
+            element.style.zIndex = "";
+          }
+          if (landingFlights.current === 0) {
+            card.style.overflow = "";
+          }
         };
         element.style.zIndex = "2";
         // the card's overflow clip hides a chip still flying in from outside it
         card.style.overflow = "visible";
-        motion.onfinish = clear;
-        motion.oncancel = clear;
+        motion.finished.then(release, release);
       }
     });
 
@@ -407,6 +456,7 @@ export function AllianceBuilderPage({
 
   // fills empty boxes in draft order: each seed takes its captain then its 1st pick before the next seed, then the 2nd pick snakes (8-1) and the 3rd pick goes 1-8
   function autoFill() {
+    snapshotChips();
     motionMode.current = "fade";
     setBoard((prev) => {
       const slots = [...prev.slots];
@@ -442,11 +492,17 @@ export function AllianceBuilderPage({
     event: ReactPointerEvent<HTMLButtonElement>,
     team: string,
   ) {
-    if (event.button !== 0) {
+    // a second finger or a non-primary button never starts (or hijacks) a drag
+    if (event.button !== 0 || !event.isPrimary) {
       return;
     }
+    // a drag whose pointerup was lost must not leak its listeners into this one
+    stopDrag.current?.();
+    // clear any text selection so the browser doesn't start a native drag of it
+    window.getSelection()?.removeAllRanges();
+    const pointerId = event.pointerId;
     // capture on the card: a chip moved between the pool and a slot is remounted, which can drop touch events aimed at it
-    cardRef.current?.setPointerCapture(event.pointerId);
+    cardRef.current?.setPointerCapture(pointerId);
     const fromSlot = board.slots.includes(team);
     const rect = event.currentTarget.getBoundingClientRect();
     dragRef.current = {
@@ -463,7 +519,7 @@ export function AllianceBuilderPage({
       fy: (event.clientY - rect.top) / rect.height,
       baseW: rect.width,
       baseH: rect.height,
-      tone: board.slots.includes(team) ? "yes" : "no",
+      tone: fromSlot ? "yes" : "no",
     };
     setDragTeam(team);
     setDragTone(dragRef.current.tone);
@@ -472,6 +528,14 @@ export function AllianceBuilderPage({
     const startBoard = board;
     let hoverKey: string | undefined;
     const onMove = (move: PointerEvent) => {
+      if (move.pointerId !== pointerId) {
+        return;
+      }
+      // a mouse button released outside the window, or swallowed by a context menu, never sends pointerup
+      if (move.pointerType === "mouse" && move.buttons === 0) {
+        onUp(move);
+        return;
+      }
       const drag = dragRef.current;
       if (!drag) {
         return;
@@ -501,7 +565,7 @@ export function AllianceBuilderPage({
       } else {
         drag.tw = drag.baseW;
         drag.th = drag.baseH;
-        const tone = statSlots.indexOf(team) === -1 ? "no" : "yes";
+        const tone = fromSlot ? "yes" : "no";
         drag.tone = tone;
         setDragTone(tone);
       }
@@ -529,21 +593,35 @@ export function AllianceBuilderPage({
       }
     };
 
+    // stops the browser from starting a text selection or a native drag while the chip is held
+    const blockDefault = (blocked: Event) => blocked.preventDefault();
+
     const stop = () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
       window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("blur", onAbort);
+      window.removeEventListener("contextmenu", blockDefault);
+      window.removeEventListener("dragstart", blockDefault);
+      window.removeEventListener("selectstart", blockDefault);
+      const card = cardRef.current;
+      if (card?.hasPointerCapture(pointerId)) {
+        card.releasePointerCapture(pointerId);
+      }
       dragTouch.current = null;
       stopDrag.current = null;
     };
 
-    const onUp = (up: PointerEvent) => {
+    // ends the drag. A release commits to the hovered box; an abort (pointercancel, window blur) puts the chip back
+    const finish = (release: PointerEvent | null) => {
       stop();
+      // painted positions are taken before any state changes, so chips still sliding start from where they are on screen
+      snapshotChips();
 
-      if (hoverKey === "pool") {
-        moveToPool(team, poolIndexAt(up.clientX, up.clientY, team));
-      } else if (hoverKey !== undefined) {
+      if (release && hoverKey === "pool") {
+        moveToPool(team, poolIndexAt(release.clientX, release.clientY, team));
+      } else if (release && hoverKey !== undefined) {
         const target = Number(hoverKey);
         const displaced = startBoard.slots[target];
         const swap = fromSlot && !!displaced && displaced !== team;
@@ -558,29 +636,47 @@ export function AllianceBuilderPage({
       } else {
         setBoard(startBoard);
       }
-      setOverPool(false);
-      setHoverSlot(null);
       const drag = dragRef.current;
       if (drag) {
+        // released from where the overlay is painted, not where it was heading, so a fast release doesn't pop
         landing.current = {
           team,
-          pulse: hoverKey !== undefined && hoverKey !== "pool",
+          pulse: !!release && hoverKey !== undefined && hoverKey !== "pool",
           box: {
-            left: drag.tx - drag.fx * drag.tw,
-            top: drag.ty - drag.fy * drag.th,
-            width: drag.tw,
-            height: drag.th,
+            left: drag.x - drag.fx * drag.w,
+            top: drag.y - drag.fy * drag.h,
+            width: drag.w,
+            height: drag.h,
           },
         };
       }
+      setOverPool(false);
+      setHoverSlot(null);
       dragRef.current = null;
       setDragTeam(null);
     };
 
+    const onUp = (up: PointerEvent) => {
+      if (up.pointerId !== pointerId) {
+        return;
+      }
+      finish(up);
+    };
+    const onPointerCancel = (cancel: PointerEvent) => {
+      if (cancel.pointerId === pointerId) {
+        finish(null);
+      }
+    };
+    const onAbort = () => finish(null);
+
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    window.addEventListener("pointercancel", onPointerCancel);
     window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("blur", onAbort);
+    window.addEventListener("contextmenu", blockDefault);
+    window.addEventListener("dragstart", blockDefault);
+    window.addEventListener("selectstart", blockDefault);
     stopDrag.current = stop;
   }
 
@@ -651,11 +747,16 @@ export function AllianceBuilderPage({
       key={team}
       type="button"
       data-team={team}
+      draggable={false}
       className={`button event-button ${tone} alliance-chip`}
       style={{ visibility: dragTeam === team ? "hidden" : "visible" }}
       onPointerDown={(event) => startDrag(event, team)}
+      onDragStart={(event) => event.preventDefault()}
       onTouchStart={(event) => {
-        dragTouch.current = event.changedTouches[0]?.identifier ?? null;
+        // only the finger that started the drag is tracked; a second finger must not take over its id
+        if (dragRef.current && dragTouch.current === null) {
+          dragTouch.current = event.changedTouches[0]?.identifier ?? null;
+        }
       }}
     >
       <h4>{label(team)}</h4>
@@ -686,6 +787,7 @@ export function AllianceBuilderPage({
             type="button"
             disabled={pool.length <= 1}
             onClick={() => {
+              snapshotChips();
               motionMode.current = "fly";
               setBoard((prev) => ({
                 ...prev,
@@ -701,6 +803,7 @@ export function AllianceBuilderPage({
             type="button"
             disabled={board.slots.every((slot) => slot === null)}
             onClick={() => {
+              snapshotChips();
               motionMode.current = "fade";
               setBoard(emptyBoard());
             }}
