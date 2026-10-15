@@ -20,68 +20,91 @@ export class FrcTeam {
   }
 
   getAvgPoints() {
-    let points = 0;
-    let numMatches = 0;
-    this.matchesData.forEach((matchData) => {
-      points += matchData.getPoints();
-      numMatches++;
-    });
-    if (numMatches === 0) {
+    if (this.hasNoMatchData()) {
       return 0;
     }
+    let points = 0;
+    this.matchesData.forEach((matchData) => {
+      points += matchData.getPoints();
+    });
     return points / this.matchesData.length;
   }
 
   getAvgAutoPoints() {
-    let points = 0;
-    let numMatches = 0;
-    this.matchesData.forEach((matchData) => {
-      points += matchData.getAutoPoints();
-      numMatches++;
-    });
-    if (numMatches === 0) {
+    if (this.hasNoMatchData()) {
       return 0;
     }
+    let points = 0;
+    this.matchesData.forEach((matchData) => {
+      points += matchData.getAutoPoints();
+    });
     return points / this.matchesData.length;
   }
 
   getAvgAutoFuelPoints() {
-    let points = 0;
-    let numMatches = 0;
-    this.matchesData.forEach((matchData) => {
-      points += matchData.getAutoFuels() * AUTO_FUEL_POINTS;
-      numMatches++;
-    });
-    if (numMatches === 0) {
+    if (this.hasNoMatchData()) {
       return 0;
     }
+    let points = 0;
+    this.matchesData.forEach((matchData) => {
+      points += matchData.getAutoFuels() * AUTO_FUEL_POINTS;
+    });
     return points / this.matchesData.length;
   }
 
   getAvgTeleopPoints() {
-    let points = 0;
-    let numMatches = 0;
-    this.matchesData.forEach((matchData) => {
-      points += matchData.getTeleopPoints();
-      numMatches++;
-    });
-    if (numMatches === 0) {
+    if (this.hasNoMatchData()) {
       return 0;
     }
+    let points = 0;
+    this.matchesData.forEach((matchData) => {
+      points += matchData.getTeleopPoints();
+    });
     return points / this.matchesData.length;
   }
 
   getAvgClimbPoints() {
-    let points = 0;
-    let numMatches = 0;
-    this.matchesData.forEach((matchData) => {
-      points += matchData.getClimbPoints();
-      numMatches++;
-    });
-    if (numMatches === 0) {
+    if (this.hasNoMatchData()) {
       return 0;
     }
+    let points = 0;
+    this.matchesData.forEach((matchData) => {
+      points += matchData.getClimbPoints();
+    });
     return points / this.matchesData.length;
+  }
+
+  getAvgDriverRating() {
+    if (this.hasNoMatchData()) {
+      return 0;
+    }
+    let rating = 0;
+    this.matchesData.forEach((matchData) => {
+      rating += matchData.getClimbPoints();
+    });
+    return rating / this.matchesData.length;
+  }
+
+  getAvgFouls() {
+    if (this.hasNoMatchData()) {
+      return 0;
+    }
+    let fouls = 0;
+    this.matchesData.forEach((matchData) => {
+      fouls += matchData.getFouls();
+    });
+    return fouls / this.matchesData.length;
+  }
+
+  getAvgTechFouls() {
+    if (this.hasNoMatchData()) {
+      return 0;
+    }
+    let techFouls = 0;
+    this.matchesData.forEach((matchData) => {
+      techFouls += matchData.getTechFouls();
+    });
+    return techFouls / this.matchesData.length;
   }
 
   addMatch(matchData: MatchData) {
@@ -109,5 +132,9 @@ export class FrcTeam {
       dataPoints += matchData.length;
     }
     return dataPoints;
+  }
+
+  private hasNoMatchData(): boolean {
+    return this.matchesData.length === 0;
   }
 }
