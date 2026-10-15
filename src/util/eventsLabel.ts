@@ -14,7 +14,7 @@ export function eventsLabel(
     ? "Aggregating all"
     : `Aggregating (${aggregateEvents.length}): ${aggregateEvents.length > 0 ? aggregateEvents.join(", ") : "None"}`;
   const display = allDisplayed
-    ? "Displaying all"
+    ? "Displaying all aggregated"
     : `Displaying (${displayEvents.length}): ${displayEvents.join(", ")}`;
-  return `${aggregate}, ${display}`;
+  return `${aggregate} | ${display}`;
 }
