@@ -241,6 +241,9 @@ export function AllianceBuilderPage({
       return;
     }
     const origin = card.getBoundingClientRect();
+    if (origin.width === 0 || origin.height === 0) {
+      return;
+    }
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
