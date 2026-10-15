@@ -26,7 +26,9 @@ export function EventsOverviewPage({
       const matches = team
         .getMatches()
         .filter((match) => displayEvents.includes(match.getEvent()));
-      if (matches.length === 0) return [];
+      if (matches.length === 0) {
+        return [];
+      }
       const filteredTeam = new FrcTeam(team.getTeamName());
       matches.forEach((match) => {
         filteredTeam.addMatch(match);

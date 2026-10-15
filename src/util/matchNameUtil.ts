@@ -21,7 +21,9 @@ export function compareMatchKeys(a: string, b: string): number {
   }
 
   const eventComparison = a.split("_")[0].localeCompare(b.split("_")[0]);
-  if (eventComparison !== 0) return eventComparison;
+  if (eventComparison !== 0) {
+    return eventComparison;
+  }
 
   const A = parseKey(a);
   const B = parseKey(b);
@@ -43,10 +45,18 @@ export function compareMatchKeys(a: string, b: string): number {
 export function getMatchTypeFromKey(key: string): string {
   const matchPart = key.split("_")[1];
 
-  if (matchPart.startsWith("qm")) return "Qualification";
-  if (matchPart.startsWith("qf")) return "Quarterfinal";
-  if (matchPart.startsWith("sf")) return "Semifinal";
-  if (matchPart.startsWith("f")) return "Final";
+  if (matchPart.startsWith("qm")) {
+    return "Qualification";
+  }
+  if (matchPart.startsWith("qf")) {
+    return "Quarterfinal";
+  }
+  if (matchPart.startsWith("sf")) {
+    return "Semifinal";
+  }
+  if (matchPart.startsWith("f")) {
+    return "Final";
+  }
 
   return "Unknown";
 }
@@ -62,7 +72,9 @@ export function getMatchNumberFromKey(key: string): number {
 export function getSetNumberFromKey(key: string): number | null {
   const matchPart = key.split("_")[1];
 
-  if (matchPart.startsWith("qm")) return null;
+  if (matchPart.startsWith("qm")) {
+    return null;
+  }
 
   const setNumber = matchPart.split("m")[0].replace(/[a-z]/g, "");
 

@@ -183,7 +183,9 @@ function App() {
     const unsubscribe = onSnapshot(
       collectionGroup(firestore, "datasets"),
       async () => {
-        if (isUpdating) return;
+        if (isUpdating) {
+          return;
+        }
         isUpdating = true;
         await updateTeams(firestore);
         isUpdating = false;
