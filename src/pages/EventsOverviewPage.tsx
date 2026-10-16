@@ -52,7 +52,7 @@ const TeamSortComparators = {
   Fouls: (a, b) => a.getAvgFouls() - b.getAvgFouls(),
   "Major Fouls": (a, b) => a.getAvgTechFouls() - b.getAvgTechFouls(),
   Data: (a, b) => b.getDataPoints() - a.getDataPoints(),
-  Team: (a, b) => a.getTeamName().localeCompare(b.getTeamName()),
+  Team: (a, b) => b.getTeamName().localeCompare(a.getTeamName()),
 } as const satisfies Record<string, TeamSortComparator>;
 
 function getTeamSortComparator(

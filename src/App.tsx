@@ -149,11 +149,6 @@ function App() {
 
   //run when app loads
   useEffect(() => {
-    // load data
-    (async () => {
-      setEventChoices(await getEvents(firestore));
-    })();
-
     onAuthStateChanged(auth, (user) => {
       setAutoLoginDone(true);
       if (user != null) {
@@ -165,21 +160,22 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (currentPage !== Page.Login) {
-      const unsubscribe = onSnapshot(
-        collection(firestore, "events"),
-        async () => {
-          setEventChoices(await getEvents(firestore));
-          // await updateTeams(firestore);
-        },
-      );
-
-      return () => unsubscribe();
+    if (!autoLoginDone) {
+      return;
     }
-  }, [currentPage]); // run whenever currentPage changes
-
+    const unsubscribe = onSnapshot(
+      collection(firestore, "events"),
+      async () => {
+        setEventChoices(await getEvents(firestore));
+      },
+    );
+    return unsubscribe;
+  }, [autoLoginDone]);
 
   useEffect(() => {
+    if (!autoLoginDone) {
+      return;
+    }
     const unsubscribe = onSnapshot(
       collectionGroup(firestore, "datasets"),
       async () => {
@@ -192,7 +188,7 @@ function App() {
       },
     );
     return unsubscribe;
-  }, [updateData]);
+  }, [updateData, autoLoginDone]);
 
   useEffect(() => {
     applyDarkMode(darkMode);
