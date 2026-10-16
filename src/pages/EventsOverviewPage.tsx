@@ -48,7 +48,8 @@ type TeamSortComparator = (a: FrcTeam, b: FrcTeam) => number;
 const createTeamSortComparator = (comparator: TeamSortComparator) =>
   ((a, b) =>
     comparator(a, b) ||
-    b.getAvgPoints() - a.getAvgPoints() || b.getTeamName().localeCompare(a.getTeamName())) as TeamSortComparator;
+    b.getAvgPoints() - a.getAvgPoints() ||
+    b.getTeamName().localeCompare(a.getTeamName())) as TeamSortComparator;
 const teamSortComparators = {
   Rank: createTeamSortComparator((a, b) => b.getAvgPoints() - a.getAvgPoints()),
   Total: createTeamSortComparator(
