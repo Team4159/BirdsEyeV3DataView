@@ -1,5 +1,9 @@
 import { useMemo, useRef, useState } from "react";
-import { createDataRange, type DataRange, extendDataRange } from "../util/DataRange";
+import {
+  createDataRange,
+  type DataRange,
+  extendDataRange,
+} from "../util/DataRange";
 import { eventsLabel } from "../util/eventsLabel";
 import { FrcTeam } from "../util/FrcTeam";
 import { getStatColor } from "../util/getStatColor";
@@ -41,26 +45,45 @@ function calculateDataRanges(
 }
 
 type TeamSortComparator = (a: FrcTeam, b: FrcTeam) => number;
-
-const TeamSortComparators = {
-  Rank: (a, b) => b.getAvgPoints() - a.getAvgPoints(),
-  Total: (a, b) => b.getAvgPoints() - a.getAvgPoints(),
-  Auto: (a, b) => b.getAvgAutoPoints() - a.getAvgAutoPoints(),
-  Teleop: (a, b) => b.getAvgTeleopPoints() - a.getAvgTeleopPoints(),
-  Climb: (a, b) => b.getAvgClimbPoints() - a.getAvgClimbPoints(),
-  "Driver Rating": (a, b) => b.getAvgDriverRating() - a.getAvgDriverRating(),
-  Fouls: (a, b) => a.getAvgFouls() - b.getAvgFouls(),
-  "Major Fouls": (a, b) => a.getAvgTechFouls() - b.getAvgTechFouls(),
-  Data: (a, b) => b.getDataPoints() - a.getDataPoints(),
-  Team: (a, b) => b.getTeamName().localeCompare(a.getTeamName()),
+const createTeamSortComparator = (comparator: TeamSortComparator) =>
+  ((a, b) =>
+    comparator(a, b) ||
+    b.getAvgPoints() - a.getAvgPoints() || b.getTeamName().localeCompare(a.getTeamName())) as TeamSortComparator;
+const teamSortComparators = {
+  Rank: createTeamSortComparator((a, b) => b.getAvgPoints() - a.getAvgPoints()),
+  Total: createTeamSortComparator(
+    (a, b) => b.getAvgPoints() - a.getAvgPoints(),
+  ),
+  Auto: createTeamSortComparator(
+    (a, b) => b.getAvgAutoPoints() - a.getAvgAutoPoints(),
+  ),
+  Teleop: createTeamSortComparator(
+    (a, b) => b.getAvgTeleopPoints() - a.getAvgTeleopPoints(),
+  ),
+  Climb: createTeamSortComparator(
+    (a, b) => b.getAvgClimbPoints() - a.getAvgClimbPoints(),
+  ),
+  "Driver Rating": createTeamSortComparator(
+    (a, b) => b.getAvgDriverRating() - a.getAvgDriverRating(),
+  ),
+  Fouls: createTeamSortComparator((a, b) => a.getAvgFouls() - b.getAvgFouls()),
+  "Major Fouls": createTeamSortComparator(
+    (a, b) => a.getAvgTechFouls() - b.getAvgTechFouls(),
+  ),
+  Data: createTeamSortComparator(
+    (a, b) => b.getDataPoints() - a.getDataPoints(),
+  ),
+  Team: createTeamSortComparator((a, b) =>
+    b.getTeamName().localeCompare(a.getTeamName()),
+  ),
 } as const satisfies Record<string, TeamSortComparator>;
 
 function getTeamSortComparator(
-  key: keyof typeof TeamSortComparators,
+  key: keyof typeof teamSortComparators,
   inverted: boolean,
 ): TeamSortComparator {
   const invert = inverted ? -1 : 1;
-  return (a, b) => TeamSortComparators[key](a, b) * invert;
+  return (a, b) => teamSortComparators[key](a, b) * invert;
 }
 
 type EventsOverviewPageProps = {
@@ -102,7 +125,7 @@ export function EventsOverviewPage({
     [displayedTeams],
   );
   const teamSortComparatorKey =
-    useRef<keyof typeof TeamSortComparators>("Rank");
+    useRef<keyof typeof teamSortComparators>("Rank");
   const teamSortComparatorInverted = useRef<boolean>(false);
   const [teamSortComparator, setTeamSortComparator] =
     useState<TeamSortComparator>(() =>
@@ -116,12 +139,12 @@ export function EventsOverviewPage({
     [teams, teamSortComparator],
   );
   const sortedTeamsByPoints = useMemo(
-    () => teams.toSorted(TeamSortComparators.Rank),
+    () => teams.toSorted(teamSortComparators.Rank),
     [teams],
   );
 
-  const handleSort = (key: keyof typeof TeamSortComparators) => {
-    if (TeamSortComparators[key]) {
+  const handleSort = (key: keyof typeof teamSortComparators) => {
+    if (teamSortComparators[key]) {
       if (teamSortComparatorKey.current !== key) {
         teamSortComparatorKey.current = key;
         teamSortComparatorInverted.current = false;
@@ -137,7 +160,7 @@ export function EventsOverviewPage({
 
   const onTeamClick = console.log;
 
-  function header(name: keyof typeof TeamSortComparators) {
+  function header(name: keyof typeof teamSortComparators) {
     return (
       <div className="teams-display-header">
         <button
