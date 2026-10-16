@@ -38,6 +38,7 @@ export function SettingsPage({
         </div>
 
         <input
+          id="aggregate-events-search"
           placeholder="Search"
           value={searchValue}
           onChange={(input) => setSearchValue(input.target.value)}
@@ -46,7 +47,7 @@ export function SettingsPage({
         <div className="grid-container scrollable-container">
           {eventChoices.map((event) => {
             if (!event.toLowerCase().includes(searchValue.toLowerCase())) {
-              return <div></div>;
+              return null;
             }
             const className = `button event-button ${aggregateEvents.includes(event) ? "yes" : "no"}`;
             return (
@@ -79,6 +80,7 @@ export function SettingsPage({
 
         {aggregateEvents.length > 0 && (
           <input
+            id="display-events-search"
             placeholder="Search"
             value={displaySearchValue}
             onChange={(input) => setDisplaySearchValue(input.target.value)}
