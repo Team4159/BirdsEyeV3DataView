@@ -80,7 +80,7 @@ export class FrcTeam {
     }
     let rating = 0;
     this.matchesData.forEach((matchData) => {
-      rating += matchData.getClimbPoints();
+      rating += matchData.getDriverRating();
     });
     return rating / this.matchesData.length;
   }
