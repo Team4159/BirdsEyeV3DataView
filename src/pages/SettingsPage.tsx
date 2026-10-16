@@ -43,7 +43,7 @@ export function SettingsPage({
           onChange={(input) => setSearchValue(input.target.value)}
         ></input>
 
-        <div className="grid-container">
+        <div className="grid-container scrollable-container">
           {eventChoices.map((event) => {
             if (!event.toLowerCase().includes(searchValue.toLowerCase())) {
               return <div></div>;
@@ -95,7 +95,7 @@ export function SettingsPage({
           )
         )}
 
-        <div className="grid-container">
+        <div className="grid-container scrollable-container">
           {aggregateEvents
             .filter((event) =>
               event.toLowerCase().includes(displaySearchValue.toLowerCase()),

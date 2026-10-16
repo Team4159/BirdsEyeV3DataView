@@ -1,5 +1,5 @@
 export enum ClimbState {
-  NONE = "none",
+  None = "none",
   L1Auto = "l1auto",
   L1 = "l1",
   L2 = "l2",
@@ -8,7 +8,7 @@ export enum ClimbState {
 
 // Define the color mapping for each state (make sure this matches what you're expecting)
 export const climbStatePoints = {
-  [ClimbState.NONE]: { points: 0 },
+  [ClimbState.None]: { points: 0 },
   [ClimbState.L1Auto]: { points: 15 },
   [ClimbState.L1]: { points: 10 },
   [ClimbState.L2]: { points: 20 },
@@ -26,6 +26,6 @@ export function climbStateFromString(text: string): ClimbState {
     case "l3":
       return ClimbState.L3;
     default:
-      return ClimbState.NONE;
+      return ClimbState.None;
   }
 }

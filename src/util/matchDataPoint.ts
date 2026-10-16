@@ -27,9 +27,9 @@ export class MatchDataPoint {
   constructor(
     autoFuels = 0,
     autoNotes = "",
-    autoClimb = ClimbState.NONE,
+    autoClimb = ClimbState.None,
     teleopFuels = 0,
-    endgameClimb = ClimbState.NONE,
+    endgameClimb = ClimbState.None,
     fouls = 0,
     techFouls = 0,
     defense = false,
