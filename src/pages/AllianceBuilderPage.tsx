@@ -7,14 +7,10 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  createDataRange,
-  type DataRange,
-  getColor,
-  updateDataRange,
-} from "../ui/TeamsDisplay";
+import { createDataRange, type DataRange, extendDataRange } from "../util/DataRange";
 import { eventsLabel } from "../util/eventsLabel";
 import { FrcTeam } from "../util/FrcTeam";
+import { getStatColor } from "../util/getStatColor";
 
 const PICK_COLUMNS = ["Captain", "1st Pick", "2nd Pick", "3rd Pick"];
 const ALLIANCE_COUNT = 8;
@@ -104,7 +100,7 @@ function statColor(value: number, range: DataRange) {
   if (range.min === range.max) {
     return "rgb(0, 255, 0)";
   }
-  return getColor(value, range, false);
+  return getStatColor(value, range, false);
 }
 
 // slots are neighbors when they touch, including diagonally, like adjacent cells in minesweeper
@@ -823,16 +819,16 @@ export function AllianceBuilderPage({
   };
   allStats.forEach((stats) => {
     if (!isZero(stats.total)) {
-      updateDataRange(statRanges.total, stats.total);
+      extendDataRange(statRanges.total, stats.total);
     }
     if (!isZero(stats.auto)) {
-      updateDataRange(statRanges.auto, stats.auto);
+      extendDataRange(statRanges.auto, stats.auto);
     }
     if (!isZero(stats.teleop)) {
-      updateDataRange(statRanges.teleop, stats.teleop);
+      extendDataRange(statRanges.teleop, stats.teleop);
     }
     if (!isZero(stats.climb)) {
-      updateDataRange(statRanges.climb, stats.climb);
+      extendDataRange(statRanges.climb, stats.climb);
     }
   });
 
