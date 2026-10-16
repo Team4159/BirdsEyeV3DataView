@@ -107,10 +107,16 @@ export function EventsOverviewPage({
 
   const displayedTeams = useMemo(() => {
     return teams.flatMap((team) => {
+      let display = false;
       const matches = team
         .getMatches()
-        .filter((match) => displayEvents.includes(match.getEvent()));
-      if (matches.length === 0) {
+        .filter((match) => {
+          if (displayEvents.includes(match.getEvent())) {
+            display = true;
+          }
+          return aggregateEvents.includes(match.getEvent());
+        });
+      if (!display || matches.length === 0) {
         return [];
       }
       const filteredTeam = new FrcTeam(team.getTeamName());
@@ -119,7 +125,7 @@ export function EventsOverviewPage({
       });
       return [filteredTeam];
     });
-  }, [teams, displayEvents]);
+  }, [teams, aggregateEvents, displayEvents]);
 
   const dataRanges = useMemo(
     () => calculateDataRanges(displayedTeams),
