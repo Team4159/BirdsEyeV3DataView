@@ -67,14 +67,15 @@ function App() {
   const [displayEvents, setDisplayEvents] = useState<string[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<FrcTeam | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
-  const teamUpdateIndex = useRef(0);
+  const isDataUpdating = useRef<boolean>(false);
+  const dataUpdateIndex = useRef<number>(0);
 
-  const updateTeams = useCallback(
+  const updateData = useCallback(
     async (firestore: Firestore) => {
-      const scopeTeamUpdateIndex = teamUpdateIndex.current + 1;
-      teamUpdateIndex.current = scopeTeamUpdateIndex;
+      const scopeTeamUpdateIndex = dataUpdateIndex.current + 1;
+      dataUpdateIndex.current = scopeTeamUpdateIndex;
       const newTeams = await getTeamsFromEvents(firestore, aggregateEvents);
-      if (scopeTeamUpdateIndex !== teamUpdateIndex.current) {
+      if (scopeTeamUpdateIndex !== dataUpdateIndex.current) {
         return;
       }
 
@@ -151,7 +152,6 @@ function App() {
     // load data
     (async () => {
       setEventChoices(await getEvents(firestore));
-      // await updateTeams(firestore);
     })();
 
     onAuthStateChanged(auth, (user) => {
@@ -178,22 +178,21 @@ function App() {
     }
   }, [currentPage]); // run whenever currentPage changes
 
+
   useEffect(() => {
-    let isUpdating = false;
     const unsubscribe = onSnapshot(
       collectionGroup(firestore, "datasets"),
       async () => {
-        if (isUpdating) {
+        if (isDataUpdating.current) {
           return;
         }
-        isUpdating = true;
-        await updateTeams(firestore);
-        isUpdating = false;
+        isDataUpdating.current = true;
+        await updateData(firestore);
+        isDataUpdating.current = false;
       },
     );
-
     return unsubscribe;
-  }, [updateTeams]);
+  }, [updateData]);
 
   useEffect(() => {
     applyDarkMode(darkMode);
