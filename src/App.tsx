@@ -160,9 +160,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!autoLoginDone) {
-      return;
-    }
     const unsubscribe = onSnapshot(
       collection(firestore, "events"),
       async () => {
@@ -170,12 +167,9 @@ function App() {
       },
     );
     return unsubscribe;
-  }, [autoLoginDone]);
+  }, []);
 
   useEffect(() => {
-    if (!autoLoginDone) {
-      return;
-    }
     const unsubscribe = onSnapshot(
       collectionGroup(firestore, "datasets"),
       async () => {
@@ -188,7 +182,7 @@ function App() {
       },
     );
     return unsubscribe;
-  }, [updateData, autoLoginDone]);
+  }, [updateData]);
 
   useEffect(() => {
     applyDarkMode(darkMode);
