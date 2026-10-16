@@ -160,6 +160,12 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!autoLoginDone) {
+      return;
+    }
+    if (currentPage === Page.Login) {
+      return;
+    }
     const unsubscribe = onSnapshot(
       collection(firestore, "events"),
       async () => {
@@ -167,9 +173,15 @@ function App() {
       },
     );
     return unsubscribe;
-  }, []);
+  }, [autoLoginDone, currentPage]);
 
   useEffect(() => {
+    if (!autoLoginDone) {
+      return;
+    }
+    if (currentPage === Page.Login) {
+      return;
+    }
     const unsubscribe = onSnapshot(
       collectionGroup(firestore, "datasets"),
       async () => {
@@ -182,7 +194,7 @@ function App() {
       },
     );
     return unsubscribe;
-  }, [updateData]);
+  }, [updateData, autoLoginDone, currentPage]);
 
   useEffect(() => {
     applyDarkMode(darkMode);
