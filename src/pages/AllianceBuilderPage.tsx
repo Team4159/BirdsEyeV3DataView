@@ -35,6 +35,9 @@ type Box = { left: number; top: number; width: number; height: number };
 // where a chip was painted (transforms included) just before a state change, and whether one of our slides was running
 type ChipSnapshot = { box: Box; moving: boolean };
 
+// a dropped chip: the overlay's painted box in viewport coordinates, from which the overlay flies to the chip's new box
+type Landing = { team: string; from: Box; pulse: boolean };
+
 type TeamAverages = {
   total: number;
   auto: number;
@@ -152,6 +155,8 @@ export function AllianceBuilderPage({
 
   const [board, setBoard] = useState<Board>(emptyBoard);
   const [dragTeam, setDragTeam] = useState<string | null>(null);
+  // the team whose overlay is still flying to its box after a drop; its real chip stays hidden until it lands
+  const [landingTeam, setLandingTeam] = useState<string | null>(null);
   const [dragTone, setDragTone] = useState<"yes" | "no">("yes");
   const [overPool, setOverPool] = useState(false);
   // the slot a dragged team is hovering, so stats can preview a replacement before release
@@ -169,14 +174,13 @@ export function AllianceBuilderPage({
   const boxes = useRef(new Map<string, Box>());
   // painted chip boxes taken right before a state change; its presence is what makes the next commit animate
   const pendingMotion = useRef<Map<string, ChipSnapshot> | null>(null);
-  // the slides this component started, so CSS transitions and fades are never mistaken for them
+  // the slides this component started on chips, so CSS transitions and fades are never mistaken for them
   const ownMotions = useRef(new WeakSet<Animation>());
-  // landing slides still running; the card stays unclipped until the last one ends
-  const landingFlights = useRef(0);
-  // the viewport box a just-dropped chip is released from
-  const landing = useRef<{ team: string; box: Box; pulse: boolean } | null>(
-    null,
-  );
+  // the overlay's flight to its box after a drop, and the listeners that cut it short if the page moves under it
+  const landingAnim = useRef<Animation | null>(null);
+  const landingCleanup = useRef<(() => void) | null>(null);
+  // set by a drop and consumed by the next commit, which starts the overlay's flight
+  const landing = useRef<Landing | null>(null);
   // how the next commit moves chips: reset and auto fill fade every chip, reorder flies them
   const motionMode = useRef<"fly" | "fade">("fly");
   // set when a drop swaps two slotted teams in neighboring slots, so both fly even if they change rows
@@ -218,8 +222,17 @@ export function AllianceBuilderPage({
   const pool = fullOrder(board.order, names).filter(
     (name) => !board.slots.includes(name),
   );
+  // the one overlay serves the held chip, then the same element carries it to its box, so it is never torn down mid-flight
+  const ghostTeam = dragTeam ?? landingTeam;
 
-  useEffect(() => () => stopDrag.current?.(), []);
+  useEffect(
+    () => () => {
+      stopDrag.current?.();
+      landingAnim.current?.cancel();
+      landingCleanup.current?.();
+    },
+    [],
+  );
 
   // eases the overlay toward the pointer and target size without re-rendering
   useLayoutEffect(() => {
@@ -262,7 +275,78 @@ export function AllianceBuilderPage({
     pendingMotion.current = snapshot;
   }
 
-  // slides each chip from where it was painted before the change (or from where a dropped chip was released) to its new box.
+  // hands the chip back from the overlay to the real chip. The animation is left alone (its fill holds the last frame) so the
+  // overlay can't flash at the release point before React removes it.
+  function settleLanding() {
+    landingAnim.current = null;
+    landingCleanup.current?.();
+    landingCleanup.current = null;
+    setLandingTeam(null);
+  }
+
+  // stops a flight in progress. Used where the overlay is about to be reused or the board is about to change, inside a discrete
+  // event, so React commits before the next paint and the cancelled overlay is never shown.
+  function endLanding() {
+    const animation = landingAnim.current;
+    settleLanding();
+    animation?.cancel();
+  }
+
+  // flies the overlay from where it was released to the dropped chip's resting box. The overlay is position: fixed, so no card
+  // clipping or z-index juggling is involved, and the real chip appears only once the overlay has arrived and is removed.
+  function startLanding(landed: Landing, rest: Box, origin: DOMRect) {
+    const overlay = overlayRef.current;
+    if (!overlay) {
+      return false;
+    }
+    const left = origin.left + rest.left;
+    const top = origin.top + rest.top;
+    const { from } = landed;
+    const frame = (box: Box, scale: number): Keyframe => ({
+      transform: `translate(${box.left}px, ${box.top}px) scale(${scale})`,
+      width: `${box.width}px`,
+      height: `${box.height}px`,
+    });
+    const end: Box = { left, top, width: rest.width, height: rest.height };
+    // a drop onto an alliance box shrinks the chip, overshoots, then settles at its normal size
+    const keyframes: Keyframe[] = landed.pulse
+      ? [
+          { ...frame(from, 1), offset: 0 },
+          { ...frame(end, 0.9), offset: 0.5 },
+          { ...frame(end, 1.03), offset: 0.75 },
+          { ...frame(end, 1), offset: 1 },
+        ]
+      : [frame(from, 1), frame(end, 1)];
+    const distance = Math.hypot(left - from.left, top - from.top);
+    const animation = overlay.animate(keyframes, {
+      duration: Math.min(MAX_MOVE_MS, MOVE_MS + distance * MS_PER_PX),
+      easing: "cubic-bezier(0.2, 0, 0, 1)",
+      // holds the last frame until React swaps the overlay for the real chip, so it never snaps back to the release point
+      fill: "forwards",
+    });
+    landingAnim.current = animation;
+    const done = () => {
+      // a flight that was cancelled or replaced has already been settled
+      if (landingAnim.current === animation) {
+        settleLanding();
+      }
+    };
+    animation.finished.then(done, done);
+    // the overlay flies to a viewport position computed now, so scrolling or resizing would leave it aiming at the wrong place;
+    // the chip simply appears in its box instead
+    window.addEventListener("scroll", settleLanding, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("resize", settleLanding);
+    landingCleanup.current = () => {
+      window.removeEventListener("scroll", settleLanding, { capture: true });
+      window.removeEventListener("resize", settleLanding);
+    };
+    return true;
+  }
+
+  // slides each chip from where it was painted before the change to its new box, and starts a dropped chip's overlay flight.
   // Only commits that were preceded by snapshotChips() or a drop animate; hover and tone re-renders leave running animations alone.
   useLayoutEffect(() => {
     const snapshot = pendingMotion.current;
@@ -279,11 +363,11 @@ export function AllianceBuilderPage({
     swapCommit.current = false;
 
     const card = cardRef.current;
-    if (!card) {
-      return;
-    }
-    const origin = card.getBoundingClientRect();
-    if (origin.width === 0 || origin.height === 0) {
+    const origin = card?.getBoundingClientRect();
+    if (!card || !origin || origin.width === 0 || origin.height === 0) {
+      if (landed) {
+        setLandingTeam(null);
+      }
       return;
     }
     const reduceMotion = window.matchMedia(
@@ -310,28 +394,34 @@ export function AllianceBuilderPage({
       relativeTo(element.getBoundingClientRect(), origin),
     );
 
-    elements.forEach((element, index) => {
+    let landingStarted = false;
+    for (let index = 0; index < elements.length; index++) {
+      const element = elements[index];
       const team = element.dataset.team ?? "";
       const now = nowRects[index];
       next.set(team, now);
 
-      const snap = snapshot?.get(team);
-      const from =
-        landed?.team === team ? relativeTo(landed.box, origin) : snap?.box;
-      if (!from || reduceMotion) {
-        return;
+      // the dropped chip stays hidden under the overlay, which flies to the chip's resting box
+      if (landed?.team === team) {
+        landingStarted = !reduceMotion && startLanding(landed, now, origin);
+        continue;
       }
+
+      const snap = snapshot?.get(team);
+      if (!snap || reduceMotion) {
+        continue;
+      }
+      const from = snap.box;
 
       const dx = from.left + from.width / 2 - (now.left + now.width / 2);
       const dy = from.top + from.height / 2 - (now.top + now.height / 2);
       const sx = from.width / Math.max(now.width, 1);
       const sy = from.height / Math.max(now.height, 1);
-      const pulse = landed?.team === team && landed.pulse;
       const still =
         Math.abs(dx) + Math.abs(dy) < 0.5 &&
         Math.abs(sx - 1) + Math.abs(sy - 1) < 0.01;
-      if (still && !pulse) {
-        return;
+      if (still) {
+        continue;
       }
       // a chip that wrapped to another row would sweep diagonally across the card, so fade it in instead.
       // This compares resting layouts: `from` can be a mid-slide position, which says nothing about wrapping.
@@ -339,62 +429,32 @@ export function AllianceBuilderPage({
       const wrapped =
         Math.abs(rest.top - now.top) > 1 ||
         Math.abs(rest.left - now.left) > now.width * 1.5;
-      if (landed?.team !== team && (fadeAll || (wrapped && !swapping))) {
+      if (fadeAll || (wrapped && !swapping)) {
         element.animate([{ opacity: 0 }, { opacity: 1 }], {
           duration: MOVE_MS,
         });
-        return;
+        continue;
       }
       const start = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
-      // a drop onto an alliance box shrinks the chip, overshoots, then settles at its normal size
-      const keyframes: Keyframe[] = pulse
-        ? [
-            { transform: start, offset: 0 },
-            { transform: "scale(0.9)", offset: 0.5 },
-            { transform: "scale(1.03)", offset: 0.75 },
-            { transform: "none", offset: 1 },
-          ]
-        : [{ transform: start }, { transform: "none" }];
       // a chip caught mid-slide only covers the distance left, so repeated drops don't stretch its motion
       const distance = Math.hypot(dx, dy);
-      const interrupted = !!snap?.moving && landed?.team !== team;
-      const duration = interrupted
+      const duration = snap.moving
         ? Math.min(MOVE_MS, Math.max(120, distance * MS_PER_PX))
         : Math.min(MAX_MOVE_MS, MOVE_MS + distance * MS_PER_PX);
-      const motion = element.animate(keyframes, {
-        duration,
-        easing: "cubic-bezier(0.2, 0, 0, 1)",
-      });
+      const motion = element.animate(
+        [{ transform: start }, { transform: "none" }],
+        {
+          duration,
+          easing: "cubic-bezier(0.2, 0, 0, 1)",
+        },
+      );
       ownMotions.current.add(motion);
-      // the dropped chip paints above the pool chips it passes over while it lands
-      if (landed?.team === team) {
-        landingFlights.current++;
-        let released = false;
-        // runs once, whether the slide finishes or is cancelled by a later commit.
-        // By then the next landing has already started, so the checks below leave its styles alone.
-        const release = () => {
-          if (released) {
-            return;
-          }
-          released = true;
-          landingFlights.current--;
-          const stillSliding = element
-            .getAnimations()
-            .some((animation) => ownMotions.current.has(animation));
-          if (!stillSliding) {
-            element.style.zIndex = "";
-          }
-          if (landingFlights.current === 0) {
-            card.style.overflow = "";
-          }
-        };
-        element.style.zIndex = "2";
-        // the card's overflow clip hides a chip still flying in from outside it
-        card.style.overflow = "visible";
-        motion.finished.then(release, release);
-      }
-    });
+    }
 
+    // no flight to wait for (reduced motion, or the chip is gone): show the real chip now
+    if (landed && !landingStarted) {
+      setLandingTeam(null);
+    }
     boxes.current = next;
   });
 
@@ -413,25 +473,37 @@ export function AllianceBuilderPage({
     return { ...base, slots };
   }
 
-  // index in the pool where a drop at (x, y) lands, found from the pool chips' current positions
+  // index in the pool (without the dropped team) where a drop at (x, y) lands, found from the pool chips' current positions
   function poolIndexAt(x: number, y: number, team: string) {
-    const chips = cardRef.current?.querySelectorAll<HTMLElement>(
-      '[data-slot="pool"] [data-team]',
+    const chips = Array.from(
+      cardRef.current?.querySelectorAll<HTMLElement>(
+        '[data-slot="pool"] [data-team]',
+      ) ?? [],
     );
-    let index = 0;
-    for (const chip of chips ?? []) {
-      if (chip.dataset.team === team) {
-        continue;
-      }
-      const rect = chip.getBoundingClientRect();
+    const rects = chips.map((chip) => chip.getBoundingClientRect());
+    // the gap the pointer is in, counted on the layout as it is on screen, where a held pool chip still has its hidden place
+    let gap = 0;
+    for (const rect of rects) {
       const before =
         y > rect.bottom || (y >= rect.top && x > rect.left + rect.width / 2);
       if (!before) {
         break;
       }
-      index++;
+      gap++;
     }
-    return index;
+    const held = chips.findIndex((chip) => chip.dataset.team === team);
+    if (held === -1 || held >= gap) {
+      // nothing before the gap moves when the team is inserted
+      return gap;
+    }
+    // the held chip sits before the gap, so everything after it moves up one place once it leaves. The same gap can mean the
+    // end of one row or the front of the next; a pointer on the lower row means that row's first place, which is index gap
+    // (index gap - 1 would put the chip at the end of the row above).
+    const next = rects[gap];
+    const previous = rects[gap - 1];
+    const startsRow = !!next && next.top - previous.top > previous.height / 2;
+    const onLowerRow = startsRow && y >= (previous.bottom + next.top) / 2;
+    return onLowerRow ? gap : gap - 1;
   }
 
   function moveToPool(team: string, index: number) {
@@ -456,6 +528,7 @@ export function AllianceBuilderPage({
 
   // fills empty boxes in draft order: each seed takes its captain then its 1st pick before the next seed, then the 2nd pick snakes (8-1) and the 3rd pick goes 1-8
   function autoFill() {
+    endLanding();
     snapshotChips();
     motionMode.current = "fade";
     setBoard((prev) => {
@@ -488,6 +561,19 @@ export function AllianceBuilderPage({
     });
   }
 
+  function chipElement(team: string) {
+    return Array.from(
+      cardRef.current?.querySelectorAll<HTMLElement>("[data-team]") ?? [],
+    ).find((element) => element.dataset.team === team);
+  }
+
+  // only the finger that started the drag is tracked; a second finger must not take over its id
+  function trackTouch(event: { changedTouches: ArrayLike<{ identifier: number }> }) {
+    if (dragRef.current && dragTouch.current === null) {
+      dragTouch.current = event.changedTouches[0]?.identifier ?? null;
+    }
+  }
+
   function startDrag(
     event: ReactPointerEvent<HTMLButtonElement>,
     team: string,
@@ -496,15 +582,23 @@ export function AllianceBuilderPage({
     if (event.button !== 0 || !event.isPrimary) {
       return;
     }
+    // measured before anything below can cancel a flight: a chip grabbed from the landing overlay is picked up exactly where it is painted
+    const rect = event.currentTarget.getBoundingClientRect();
+    // the size the chip settles at. For the overlay that is its hidden real chip, not whatever size the flight has reached.
+    const restRect =
+      event.currentTarget === overlayRef.current
+        ? (chipElement(team)?.getBoundingClientRect() ?? rect)
+        : rect;
     // a drag whose pointerup was lost must not leak its listeners into this one
     stopDrag.current?.();
+    // a chip still landing from the previous drop is shown at its box so the overlay can be reused
+    endLanding();
     // clear any text selection so the browser doesn't start a native drag of it
     window.getSelection()?.removeAllRanges();
     const pointerId = event.pointerId;
     // capture on the card: a chip moved between the pool and a slot is remounted, which can drop touch events aimed at it
     cardRef.current?.setPointerCapture(pointerId);
     const fromSlot = board.slots.includes(team);
-    const rect = event.currentTarget.getBoundingClientRect();
     dragRef.current = {
       team,
       x: event.clientX,
@@ -517,8 +611,8 @@ export function AllianceBuilderPage({
       th: rect.height,
       fx: (event.clientX - rect.left) / rect.width,
       fy: (event.clientY - rect.top) / rect.height,
-      baseW: rect.width,
-      baseH: rect.height,
+      baseW: restRect.width,
+      baseH: restRect.height,
       tone: fromSlot ? "yes" : "no",
     };
     setDragTeam(team);
@@ -638,17 +732,18 @@ export function AllianceBuilderPage({
       }
       const drag = dragRef.current;
       if (drag) {
-        // released from where the overlay is painted, not where it was heading, so a fast release doesn't pop
+        // the overlay keeps flying from where it is painted, not where it was heading, so a fast release doesn't pop
         landing.current = {
           team,
           pulse: !!release && hoverKey !== undefined && hoverKey !== "pool",
-          box: {
+          from: {
             left: drag.x - drag.fx * drag.w,
             top: drag.y - drag.fy * drag.h,
             width: drag.w,
             height: drag.h,
           },
         };
+        setLandingTeam(team);
       }
       setOverPool(false);
       setHoverSlot(null);
@@ -741,7 +836,7 @@ export function AllianceBuilderPage({
     }
   });
 
-  // the grabbed chip stays in layout (hidden) so the grid doesn't jump
+  // the held (or still landing) chip stays in layout, hidden, so the grid doesn't jump and the overlay is the only thing visible
   const chip = (team: string, tone: "yes" | "no") => (
     <button
       key={team}
@@ -749,15 +844,10 @@ export function AllianceBuilderPage({
       data-team={team}
       draggable={false}
       className={`button event-button ${tone} alliance-chip`}
-      style={{ visibility: dragTeam === team ? "hidden" : "visible" }}
+      style={{ visibility: ghostTeam === team ? "hidden" : "visible" }}
       onPointerDown={(event) => startDrag(event, team)}
       onDragStart={(event) => event.preventDefault()}
-      onTouchStart={(event) => {
-        // only the finger that started the drag is tracked; a second finger must not take over its id
-        if (dragRef.current && dragTouch.current === null) {
-          dragTouch.current = event.changedTouches[0]?.identifier ?? null;
-        }
-      }}
+      onTouchStart={trackTouch}
     >
       <h4>{label(team)}</h4>
     </button>
@@ -787,6 +877,7 @@ export function AllianceBuilderPage({
             type="button"
             disabled={pool.length <= 1}
             onClick={() => {
+              endLanding();
               snapshotChips();
               motionMode.current = "fly";
               setBoard((prev) => ({
@@ -803,6 +894,7 @@ export function AllianceBuilderPage({
             type="button"
             disabled={board.slots.every((slot) => slot === null)}
             onClick={() => {
+              endLanding();
               snapshotChips();
               motionMode.current = "fade";
               setBoard(emptyBoard());
@@ -886,15 +978,25 @@ export function AllianceBuilderPage({
         {pool.map((team) => chip(team, "no"))}
       </fieldset>
 
-      {dragTeam && (
+      {ghostTeam && (
         <button
           ref={overlayRef}
           type="button"
           tabIndex={-1}
           aria-hidden="true"
+          draggable={false}
           className={`button event-button ${dragTone} alliance-drag-overlay`}
+          // while the overlay carries a dropped chip to its box it is the chip, so it can be grabbed again mid-flight.
+          // During a drag it must ignore the pointer so the box underneath can be found.
+          style={{
+            touchAction: "none",
+            pointerEvents: dragTeam ? undefined : "auto",
+          }}
+          onPointerDown={(event) => startDrag(event, ghostTeam)}
+          onDragStart={(event) => event.preventDefault()}
+          onTouchStart={trackTouch}
         >
-          <h4>{label(dragTeam)}</h4>
+          <h4>{label(ghostTeam)}</h4>
         </button>
       )}
     </div>
