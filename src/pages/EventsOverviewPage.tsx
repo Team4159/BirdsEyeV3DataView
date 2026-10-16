@@ -136,12 +136,12 @@ export function EventsOverviewPage({
       ),
     );
   const sortedTeams = useMemo(
-    () => teams.toSorted(teamSortComparator),
-    [teams, teamSortComparator],
+    () => displayedTeams.toSorted(teamSortComparator),
+    [displayedTeams, teamSortComparator],
   );
   const sortedTeamsByPoints = useMemo(
-    () => teams.toSorted(teamSortComparators.Rank),
-    [teams],
+    () => displayedTeams.toSorted(teamSortComparators.Rank),
+    [displayedTeams],
   );
 
   const handleSort = (key: keyof typeof teamSortComparators) => {
