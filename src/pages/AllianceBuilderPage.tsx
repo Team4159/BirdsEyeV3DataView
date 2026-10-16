@@ -7,7 +7,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { createDataRange, type DataRange, extendDataRange } from "../util/DataRange";
+import {
+  createDataRange,
+  type DataRange,
+  extendDataRange,
+} from "../util/DataRange";
 import { eventsLabel } from "../util/eventsLabel";
 import { FrcTeam } from "../util/FrcTeam";
 import { getStatColor } from "../util/getStatColor";
@@ -135,10 +139,14 @@ export function AllianceBuilderPage({
   // only teams with matches in the displayed events, with stats limited to those matches
   const teams = useMemo(() => {
     return allTeams.flatMap((team) => {
-      const matches = team
-        .getMatches()
-        .filter((match) => displayEvents.includes(match.getEvent()));
-      if (matches.length === 0) {
+      let display = false;
+      const matches = team.getMatches().filter((match) => {
+        if (displayEvents.includes(match.getEvent())) {
+          display = true;
+        }
+        return aggregateEvents.includes(match.getEvent());
+      });
+      if (!display || matches.length === 0) {
         return [];
       }
       const filteredTeam = new FrcTeam(team.getTeamName());
@@ -147,7 +155,7 @@ export function AllianceBuilderPage({
       });
       return [filteredTeam];
     });
-  }, [allTeams, displayEvents]);
+  }, [allTeams, displayEvents, aggregateEvents]);
 
   const [board, setBoard] = useState<Board>(emptyBoard);
   const [dragTeam, setDragTeam] = useState<string | null>(null);
@@ -564,7 +572,9 @@ export function AllianceBuilderPage({
   }
 
   // only the finger that started the drag is tracked; a second finger must not take over its id
-  function trackTouch(event: { changedTouches: ArrayLike<{ identifier: number }> }) {
+  function trackTouch(event: {
+    changedTouches: ArrayLike<{ identifier: number }>;
+  }) {
     if (dragRef.current && dragTouch.current === null) {
       dragTouch.current = event.changedTouches[0]?.identifier ?? null;
     }
