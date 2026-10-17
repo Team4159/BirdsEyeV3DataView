@@ -1,8 +1,8 @@
+import { collectionGroup, onSnapshot } from "firebase/firestore";
 import type { Firestore } from "firebase/firestore/lite";
 import { useEffect, useMemo, useState } from "react";
 import { fetchMatchDatasFromEvents } from "../util/databaseFetcher";
 import { eventsLabel } from "../util/eventsLabel";
-import { collectionGroup, onSnapshot } from "firebase/firestore";
 
 type LeaderboardPageProps = {
   firestore: Firestore;
