@@ -13,12 +13,11 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@mui/x-charts": "^9.15.0",
     "@react-oauth/google": "^0.13.4",
-    "chart.js": "^4.5.1",
     "firebase": "^13.0.0",
     "lucide-react": "^1.55.0",
     "react": "^19.2.0",
-    "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
