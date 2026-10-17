@@ -350,6 +350,7 @@ fieldset.grid-container.pool-drop {
 
 .card-title-row button {
     font-weight: bold;
+    margin: 4px
 }
 
 .card-title-row button:disabled {

@@ -131,6 +131,14 @@ function App() {
     }
   }
 
+  function toggleAllUndisplayedAggregateEvents() {
+    if (aggregateEvents.length === displayEvents.length) {
+      setAggregateEvents([...eventChoices]);
+    } else {
+      setAggregateEvents([...displayEvents]);
+    }
+  }
+
   function toggleAllDisplayEvents() {
     if (displayEvents.length === aggregateEvents.length) {
       setDisplayEvents([]);
@@ -274,6 +282,7 @@ function App() {
           toggleAggregateEvent={toggleAggregateEvent}
           toggleDisplayEvent={toggleDisplayEvent}
           toggleAllAggregateEvents={toggleAllAggregateEvents}
+          toggleAllUndisplayedAggregateEvents={toggleAllUndisplayedAggregateEvents}
           toggleAllDisplayEvents={toggleAllDisplayEvents}
         />
       )}
