@@ -66,12 +66,12 @@ export function ScouterLeaderboardPage({
 
   return displayEvents.length === 0 ? (
     <div className="card">
-      <h1>Leaderboard</h1>
+      <h1>Scouter Leaderboard</h1>
       <span className="text-container">{headerMessage}</span>
     </div>
   ) : (
     <div className="wide-card">
-      <h1>Leaderboard</h1>
+      <h1>Scouter Leaderboard</h1>
       <span className="text-container">{headerMessage}</span>
       <div
         className="scouter-leaderboard-container"
