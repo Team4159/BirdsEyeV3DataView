@@ -36,19 +36,26 @@ export function ScouterLeaderboardPage({
         fetchMatchDatasFromEvents(firestore, aggregateEvents).then(
           (aggregatedMatchDatas) => {
             const emailCounts: Map<string, number> = new Map();
+            const emailsToDisplay: string[] = [];
             for (const [_, matchData] of aggregatedMatchDatas) {
-              if (!displayEvents.includes(matchData.getEvent())) {
-                continue;
-              }
               for (const matchDataPoint of matchData.getMatchDataPoints()) {
                 const email = matchDataPoint.getScouterEmail();
                 if (!email) {
                   continue;
                 }
+                if (!emailsToDisplay.includes(email) && displayEvents.includes(matchData.getEvent())) {
+                  emailsToDisplay.push(email);
+                }
                 const currentCount = emailCounts.get(email) ?? 0;
                 emailCounts.set(email, currentCount + 1);
               }
             }
+            emailCounts.forEach((_, email) => {
+              if (emailsToDisplay.includes(email)) {
+                return;
+              }
+              emailCounts.delete(email);
+            })
             setEmailCounts(emailCounts);
           },
         );
