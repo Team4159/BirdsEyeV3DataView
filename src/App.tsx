@@ -32,9 +32,8 @@ import { LoginPage } from "./pages/LoginPage";
 import { Page } from "./pages/Page";
 import { SettingsPage } from "./pages/SettingsPage";
 import { applyDarkMode } from "./ui/theme";
+import { getEvents, getTeamsFromEvents } from "./util/databaseFetcher";
 import { FrcTeam } from "./util/FrcTeam";
-import { getEvents } from "./util/getEvents";
-import { getTeamsFromEvents } from "./util/getTeams";
 import type { MatchData } from "./util/matchData";
 
 // Your web app's Firebase configuration

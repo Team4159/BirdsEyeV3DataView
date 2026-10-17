@@ -175,6 +175,7 @@ export function EventsOverviewPage({
           className="teams-display-sort-button"
           onClick={() => handleSort(name)}
           style={{
+            backgroundClip: "padding-box",
             borderTop: "2px solid",
             borderBottom: "2px solid",
             borderTopColor:
