@@ -31,7 +31,6 @@ import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { Page } from "./pages/Page";
 import { SettingsPage } from "./pages/SettingsPage";
-import { TeamOverviewPage } from "./pages/TeamOverviewPage";
 import { applyDarkMode } from "./ui/theme";
 import { getEvents, getTeamsFromEvents } from "./util/databaseFetcher";
 import { FrcTeam } from "./util/FrcTeam";
@@ -289,9 +288,9 @@ function App() {
         />
       </div>
 
-      {currentPage === Page.TeamOverview && (
+      {/*{currentPage === Page.TeamOverview && (
         <TeamOverviewPage selectedTeam={selectedTeam} />
-      )}
+      )}*/}
 
       <div hidden={currentPage !== Page.AllianceBuilder}>
         <AllianceBuilderPage

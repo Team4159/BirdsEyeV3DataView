@@ -1,11 +1,6 @@
 import type { MatchDataPoint } from "./matchDataPoint";
 import { formatMatchLabel } from "./matchNameUtil";
-import {
-  AUTO_FUEL_POINTS,
-  FOUL_POINTS,
-  TECH_FOUL_POINTS,
-  TELEOP_FUEL_POINTS,
-} from "./pointValues";
+import { PointValue } from "./pointValues";
 
 export class MatchData {
   //different data points for the same match that then get avged
@@ -87,21 +82,21 @@ export class MatchData {
 
   public getPoints(): number {
     return (
-      this.getAutoFuels() * AUTO_FUEL_POINTS +
+      this.getAutoFuels() * PointValue.AutoFuelPoints +
       this.getAutoClimbPoints() +
-      this.getTeleopFuels() * TELEOP_FUEL_POINTS +
+      this.getTeleopFuels() * PointValue.TeleopFuelPoints +
       this.getEndgameClimbPoints() -
-      this.getFouls() * FOUL_POINTS -
-      this.getTechFouls() * TECH_FOUL_POINTS
+      this.getFouls() * PointValue.FoulPoints -
+      this.getTechFouls() * PointValue.TechFoulPoints
     );
   }
 
   public getAutoPoints(): number {
-    return this.getAutoFuels() * AUTO_FUEL_POINTS + this.getAutoClimbPoints();
+    return this.getAutoFuels() * PointValue.AutoFuelPoints + this.getAutoClimbPoints();
   }
 
   public getTeleopPoints(): number {
-    return this.getTeleopFuels() * TELEOP_FUEL_POINTS;
+    return this.getTeleopFuels() * PointValue.TeleopFuelPoints;
   }
 
   public getClimbPoints(): number {
@@ -112,18 +107,18 @@ export class MatchData {
     return (
       this.getAutoClimbPoints() +
       this.getEndgameClimbPoints() +
-      this.getAutoFuels() * AUTO_FUEL_POINTS +
-      this.getTeleopFuels() * TELEOP_FUEL_POINTS
+      this.getAutoFuels() * PointValue.AutoFuelPoints +
+      this.getTeleopFuels() * PointValue.TeleopFuelPoints
     );
   }
 
   public getAutoFuelPercentage(): number {
-    return (this.getAutoFuels() * AUTO_FUEL_POINTS) / this.getPointsNoFouls();
+    return (this.getAutoFuels() * PointValue.AutoFuelPoints) / this.getPointsNoFouls();
   }
 
   public getTeleopFuelPercentage(): number {
     return (
-      (this.getTeleopFuels() * TELEOP_FUEL_POINTS) / this.getPointsNoFouls()
+      (this.getTeleopFuels() * PointValue.TeleopFuelPoints) / this.getPointsNoFouls()
     );
   }
 

@@ -4,12 +4,7 @@ import {
   climbStateFromString,
   climbStatePoints,
 } from "./ClimbState";
-import {
-  AUTO_FUEL_POINTS,
-  FOUL_POINTS,
-  TECH_FOUL_POINTS,
-  TELEOP_FUEL_POINTS,
-} from "./pointValues";
+import { PointValue } from "./pointValues";
 
 export class MatchDataPoint {
   private autoFuels: number;
@@ -92,24 +87,24 @@ export class MatchDataPoint {
 
   public getPoints(): number {
     return (
-      this.autoFuels * AUTO_FUEL_POINTS +
+      this.autoFuels * PointValue.AutoFuelPoints +
       climbStatePoints[this.autoClimb].points +
-      this.teleopFuels * TELEOP_FUEL_POINTS +
+      this.teleopFuels * PointValue.TeleopFuelPoints +
       climbStatePoints[this.endgameClimb].points -
-      this.fouls * FOUL_POINTS -
-      this.techFouls * TECH_FOUL_POINTS
+      this.fouls * PointValue.FoulPoints -
+      this.techFouls * PointValue.TechFoulPoints
     );
   }
 
   public getAutoPoints(): number {
     return (
-      this.autoFuels * AUTO_FUEL_POINTS +
+      this.autoFuels * PointValue.AutoFuelPoints +
       climbStatePoints[this.autoClimb].points
     );
   }
 
   public getTeleopPoints(): number {
-    return this.teleopFuels * TELEOP_FUEL_POINTS;
+    return this.teleopFuels * PointValue.TeleopFuelPoints;
   }
 
   public getClimbPoints(): number {
@@ -123,17 +118,17 @@ export class MatchDataPoint {
     return (
       climbStatePoints[this.endgameClimb].points +
       climbStatePoints[this.autoClimb].points +
-      this.autoFuels * AUTO_FUEL_POINTS +
-      this.teleopFuels * TELEOP_FUEL_POINTS
+      this.autoFuels * PointValue.AutoFuelPoints +
+      this.teleopFuels * PointValue.TeleopFuelPoints
     );
   }
 
   public getAutoFuelPercentage(): number {
-    return (this.autoFuels * AUTO_FUEL_POINTS) / this.getPointsNoFouls();
+    return (this.autoFuels * PointValue.AutoFuelPoints) / this.getPointsNoFouls();
   }
 
   public getTeleopFuelPercentage(): number {
-    return (this.teleopFuels * TELEOP_FUEL_POINTS) / this.getPointsNoFouls();
+    return (this.teleopFuels * PointValue.TeleopFuelPoints) / this.getPointsNoFouls();
   }
 
   public getClimbPercentage(): number {

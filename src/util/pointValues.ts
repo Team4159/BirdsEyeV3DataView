@@ -1,4 +1,7 @@
-export const AUTO_FUEL_POINTS = 1;
-export const TELEOP_FUEL_POINTS = 1;
-export const FOUL_POINTS = 4;
-export const TECH_FOUL_POINTS = 8;
+/** biome-ignore-all lint/suspicious/noDuplicateEnumValues: point values are not mutually exclusive */
+export enum PointValue {
+  AutoFuelPoints = 1,
+  TeleopFuelPoints = 1,
+  FoulPoints = 4,
+  TechFoulPoints = 8,
+}
