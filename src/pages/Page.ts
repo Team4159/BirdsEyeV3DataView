@@ -6,5 +6,5 @@ export enum Page {
   MatchOverview,
   MatchSpecificOverview,
   AllianceBuilder,
-  Leaderboard,
+  ScouterLeaderboard,
 }

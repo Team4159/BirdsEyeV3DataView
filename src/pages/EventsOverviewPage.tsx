@@ -101,7 +101,7 @@ export function EventsOverviewPage({
   aggregateEvents,
   displayEvents,
   teams,
-  onTeamClick
+  onTeamClick,
 }: EventsOverviewPageProps) {
   const headerMessage = useMemo(
     () => eventsLabel(eventChoices, aggregateEvents, displayEvents),
@@ -154,10 +154,10 @@ export function EventsOverviewPage({
 
   function header(name: keyof typeof teamSortComparators) {
     return (
-      <div className="teams-display-header">
+      <div className="events-overview-header">
         <button
           type="button"
-          className="teams-display-sort-button"
+          className="events-overview-sort-button"
           onClick={() => handleSort(name)}
           style={{
             backgroundClip: "padding-box",
@@ -190,138 +190,136 @@ export function EventsOverviewPage({
     <div className="wide-card">
       <h1>Events Overview</h1>
       <span className="text-container">{headerMessage}</span>
-      <div className="xy-scroll-container">
-        <div className="teams-display">
-          <div
-            className="teams-display-row"
-            style={{
-              paddingBottom: "4px",
-            }}
-          >
-            {header("Rank")}
-            {header("Team")}
-            {header("Data")}
-            {header("Total")}
-            {header("Auto")}
-            {header("Teleop")}
-            {header("Climb")}
-            {header("Driver Rating")}
-            {header("Fouls")}
-            {header("Major Fouls")}
-          </div>
-          {sortedTeams.map((team) => (
-            <button
-              key={team.getTeamName()}
-              type="button"
-              className="teams-display-row"
-              onClick={() => onTeamClick(team)}
-              style={{ cursor: "pointer" }}
-            >
-              <div className="teams-display-item">
-                #{sortedTeamsByPoints.indexOf(team) + 1}
-              </div>
-              <div className="teams-display-item">
-                {team.getTeamName().substring(3)}
-              </div>
-              <div
-                style={{
-                  color: getStatColor(
-                    team.getDataPoints(),
-                    dataRanges.dataPoints,
-                    false,
-                  ),
-                }}
-                className="teams-display-item"
-              >
-                {team.getDataPoints()}
-              </div>
-              <div
-                style={{
-                  color: getStatColor(
-                    team.getAvgPoints(),
-                    dataRanges.avgScore,
-                    false,
-                  ),
-                }}
-                className="teams-display-item"
-              >
-                {team.getAvgPoints().toFixed(2)}
-              </div>
-              <div
-                style={{
-                  color: getStatColor(
-                    team.getAvgAutoPoints(),
-                    dataRanges.autoAvgScore,
-                    false,
-                  ),
-                }}
-                className="teams-display-item"
-              >
-                {team.getAvgAutoPoints().toFixed(2)}
-              </div>
-              <div
-                style={{
-                  color: getStatColor(
-                    team.getAvgTeleopPoints(),
-                    dataRanges.teleopAvgScore,
-                    false,
-                  ),
-                }}
-                className="teams-display-item"
-              >
-                {team.getAvgTeleopPoints().toFixed(2)}
-              </div>
-              <div
-                style={{
-                  color: getStatColor(
-                    team.getAvgClimbPoints(),
-                    dataRanges.climbAvgScore,
-                    false,
-                  ),
-                }}
-                className="teams-display-item"
-              >
-                {team.getAvgClimbPoints().toFixed(2)}
-              </div>
-              <div
-                style={{
-                  color: getStatColor(
-                    team.getAvgDriverRating(),
-                    dataRanges.avgDriverRating,
-                    false,
-                  ),
-                }}
-                className="teams-display-item"
-              >
-                {team.getAvgDriverRating().toFixed(2)}
-              </div>
-              <div
-                style={{
-                  color: getStatColor(
-                    team.getAvgFouls(),
-                    dataRanges.avgFouls,
-                    true,
-                  ),
-                }}
-                className="teams-display-item"
-              >
-                {team.getAvgFouls().toFixed(2)}
-              </div>
-              <div
-                style={{
-                  color: getStatColor(
-                    team.getAvgTechFouls(),
-                    dataRanges.avgTechFouls,
-                    true,
-                  ),
-                }}
-                className="teams-display-item"
-              >
-                {team.getAvgTechFouls().toFixed(2)}
-              </div>
-            </button>
-          ))}
+      <div className="x-scroll-container events-overview-container">
+        <div
+          className="events-overview-row"
+          style={{
+            paddingBottom: "4px",
+          }}
+        >
+          {header("Rank")}
+          {header("Team")}
+          {header("Data")}
+          {header("Total")}
+          {header("Auto")}
+          {header("Teleop")}
+          {header("Climb")}
+          {header("Driver Rating")}
+          {header("Fouls")}
+          {header("Major Fouls")}
         </div>
+        {sortedTeams.map((team) => (
+          <button
+            key={team.getTeamName()}
+            type="button"
+            className="events-overview-row"
+            onClick={() => onTeamClick(team)}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="events-overview-item">
+              #{sortedTeamsByPoints.indexOf(team) + 1}
+            </div>
+            <div className="events-overview-item">
+              {team.getTeamName().substring(3)}
+            </div>
+            <div
+              style={{
+                color: getStatColor(
+                  team.getDataPoints(),
+                  dataRanges.dataPoints,
+                  false,
+                ),
+              }}
+              className="events-overview-item"
+            >
+              {team.getDataPoints()}
+            </div>
+            <div
+              style={{
+                color: getStatColor(
+                  team.getAvgPoints(),
+                  dataRanges.avgScore,
+                  false,
+                ),
+              }}
+              className="events-overview-item"
+            >
+              {team.getAvgPoints().toFixed(2)}
+            </div>
+            <div
+              style={{
+                color: getStatColor(
+                  team.getAvgAutoPoints(),
+                  dataRanges.autoAvgScore,
+                  false,
+                ),
+              }}
+              className="events-overview-item"
+            >
+              {team.getAvgAutoPoints().toFixed(2)}
+            </div>
+            <div
+              style={{
+                color: getStatColor(
+                  team.getAvgTeleopPoints(),
+                  dataRanges.teleopAvgScore,
+                  false,
+                ),
+              }}
+              className="events-overview-item"
+            >
+              {team.getAvgTeleopPoints().toFixed(2)}
+            </div>
+            <div
+              style={{
+                color: getStatColor(
+                  team.getAvgClimbPoints(),
+                  dataRanges.climbAvgScore,
+                  false,
+                ),
+              }}
+              className="events-overview-item"
+            >
+              {team.getAvgClimbPoints().toFixed(2)}
+            </div>
+            <div
+              style={{
+                color: getStatColor(
+                  team.getAvgDriverRating(),
+                  dataRanges.avgDriverRating,
+                  false,
+                ),
+              }}
+              className="events-overview-item"
+            >
+              {team.getAvgDriverRating().toFixed(2)}
+            </div>
+            <div
+              style={{
+                color: getStatColor(
+                  team.getAvgFouls(),
+                  dataRanges.avgFouls,
+                  true,
+                ),
+              }}
+              className="events-overview-item"
+            >
+              {team.getAvgFouls().toFixed(2)}
+            </div>
+            <div
+              style={{
+                color: getStatColor(
+                  team.getAvgTechFouls(),
+                  dataRanges.avgTechFouls,
+                  true,
+                ),
+              }}
+              className="events-overview-item"
+            >
+              {team.getAvgTechFouls().toFixed(2)}
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );

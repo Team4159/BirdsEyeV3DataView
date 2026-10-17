@@ -10,7 +10,9 @@ import {
 } from "firebase/firestore";
 import { FrcTeam } from "../util/FrcTeam";
 import { MatchData } from "../util/matchData";
-import { MatchDataPointFromFirestore } from "../util/matchDataPoint";
+import {
+  matchDataPointFromFirestore,
+} from "../util/matchDataPoint";
 
 export async function fetchScoutedEvents(
   firestore: Firestore,
@@ -19,7 +21,30 @@ export async function fetchScoutedEvents(
   return querySnapshot;
 }
 
-export async function fetchScoutedEventsData(
+export async function fetchScoutedEventsMatchDatas(
+  firestore: Firestore,
+  events: string[],
+) {
+  const promises = events.map((event) => getEventDocPromises(firestore, event));
+  const querySnapshots = await Promise.all(promises);
+
+  const matchDatas = new Map<string, MatchData>();
+  for (const querySnapshot of querySnapshots) {
+    for (const doc of querySnapshot.docs) {
+      const pathParts = doc.ref.path.split("/");
+      const match = pathParts[5];
+      if (!matchDatas.has(match)) {
+        matchDatas.set(match, new MatchData([], match));
+      }
+      const dataPoint = matchDataPointFromFirestore(doc.data());
+      matchDatas.get(match)?.addDataPoint(dataPoint);
+    }
+  }
+
+  return matchDatas;
+}
+
+export async function fetchScoutedEventsTeamDatas(
   firestore: Firestore,
   events: string[],
 ): Promise<Map<string, FrcTeam>> {
@@ -27,37 +52,28 @@ export async function fetchScoutedEventsData(
     return new Map();
   }
 
-  const promises = events.map((event) =>
-    getDocs(
-      query(
-        collectionGroup(firestore, "datasets"),
-        where(documentId(), ">", `events/${event}`),
-        where(documentId(), "<", `events/${event}\uf8ff`),
-      ),
-    ),
-  );
+  const promises = events.map((event) => getEventDocPromises(firestore, event));
   const querySnapshots = await Promise.all(promises);
 
-  const dataMap = new Map<string, Map<string, MatchData>>();
-
+  const teamDatas = new Map<string, Map<string, MatchData>>();
   for (const querySnapshot of querySnapshots) {
     for (const doc of querySnapshot.docs) {
       const pathParts = doc.ref.path.split("/");
       const team = pathParts[3];
       const match = pathParts[5];
-      if (!dataMap.get(team)) {
-        dataMap.set(team, new Map());
+      if (!teamDatas.has(team)) {
+        teamDatas.set(team, new Map());
       }
-      if (!dataMap.get(team)?.get(match)) {
-        dataMap.get(team)?.set(match, new MatchData([], match));
+      if (!teamDatas.get(team)?.has(match)) {
+        teamDatas.get(team)?.set(match, new MatchData([], match));
       }
-      const dataPoint = MatchDataPointFromFirestore(doc.data());
-      dataMap.get(team)?.get(match)?.addDataPoint(dataPoint);
+      const dataPoint = matchDataPointFromFirestore(doc.data());
+      teamDatas.get(team)?.get(match)?.addDataPoint(dataPoint);
     }
   }
 
   const teamsMap = new Map<string, FrcTeam>();
-  dataMap.forEach((matchDataMap, team) => {
+  teamDatas.forEach((matchDataMap, team) => {
     const frcTeam = new FrcTeam(team);
     teamsMap.set(team, frcTeam);
     matchDataMap.forEach((matchData) => {
@@ -68,7 +84,7 @@ export async function fetchScoutedEventsData(
   return teamsMap;
 }
 
-export async function fetchScoutedEventData(
+export async function fetchScoutedEventTeamData(
   firestore: Firestore,
   event: string,
 ): Promise<QuerySnapshot> {
@@ -108,4 +124,14 @@ export async function fetchScoutedMatchData(
     ),
   );
   return querySnapshot;
+}
+
+async function getEventDocPromises(firestore: Firestore, event: string) {
+  return getDocs(
+    query(
+      collectionGroup(firestore, "datasets"),
+      where(documentId(), ">", `events/${event}`),
+      where(documentId(), "<", `events/${event}\uf8ff`),
+    ),
+  );
 }

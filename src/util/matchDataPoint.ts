@@ -140,7 +140,7 @@ export class MatchDataPoint {
   }
 }
 
-export function MatchDataPointFromFirestore(data: DocumentData) {
+export function matchDataPointFromFirestore(data: DocumentData) {
   return new MatchDataPoint(
     data.autoFuels,
     data.autoNotes,

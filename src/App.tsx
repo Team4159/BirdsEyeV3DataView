@@ -27,12 +27,15 @@ import {
 import { logOut } from "./firebase/auth";
 import { AllianceBuilderPage } from "./pages/AllianceBuilderPage";
 import { EventsOverviewPage } from "./pages/EventsOverviewPage";
-import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { Page } from "./pages/Page";
+import { ScouterLeaderboardPage } from "./pages/ScouterLeaderboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { applyDarkMode } from "./ui/theme";
-import { getEvents, getTeamsFromEvents } from "./util/databaseFetcher";
+import {
+  fetchEvents,
+  fetchTeamsFromEvents,
+} from "./util/databaseFetcher";
 import { FrcTeam } from "./util/FrcTeam";
 import type { MatchData } from "./util/matchData";
 
@@ -73,7 +76,7 @@ function App() {
     async (firestore: Firestore) => {
       const scopeTeamUpdateIndex = dataUpdateIndex.current + 1;
       dataUpdateIndex.current = scopeTeamUpdateIndex;
-      const newTeams = await getTeamsFromEvents(firestore, aggregateEvents);
+      const newTeams = await fetchTeamsFromEvents(firestore, aggregateEvents);
       if (scopeTeamUpdateIndex !== dataUpdateIndex.current) {
         return;
       }
@@ -168,7 +171,7 @@ function App() {
     const unsubscribe = onSnapshot(
       collection(firestore, "events"),
       async () => {
-        setEventChoices((await getEvents(firestore)).reverse());
+        setEventChoices((await fetchEvents(firestore)).reverse());
       },
     );
     return unsubscribe;
@@ -245,7 +248,7 @@ function App() {
           <button
             type="button"
             onClick={() => {
-              setCurrentPage(Page.Leaderboard);
+              setCurrentPage(Page.ScouterLeaderboard);
             }}
           >
             <Trophy size={20} />
@@ -301,13 +304,14 @@ function App() {
         />
       </div>
 
-      {currentPage === Page.Leaderboard && (
-        <LeaderboardPage
+      <div hidden={currentPage !== Page.ScouterLeaderboard}>
+        <ScouterLeaderboardPage
+          firestore={firestore}
           eventChoices={eventChoices}
           aggregateEvents={aggregateEvents}
           displayEvents={displayEvents}
         />
-      )}
+      </div>
     </main>
   );
 }

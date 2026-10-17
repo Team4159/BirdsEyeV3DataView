@@ -47,6 +47,68 @@ h3 {
     font-size: 1rem;
 }
 
+a {
+    font-weight: 500;
+    color: #646cff;
+    text-decoration: inherit;
+}
+
+a:hover {
+    color: #535bf2;
+}
+
+button::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+button:not(:disabled):active::after {
+    opacity: 0.15;
+}
+
+button:hover {
+    background: var(--button-hover);
+}
+
+button:disabled {
+    background: var(--button-hover);
+    cursor: not-allowed;
+}
+
+button:focus {
+    outline: none;
+}
+
+button:focus-visible {
+    outline: 4px auto -webkit-focus-ring-color;
+}
+
+fieldset.alliance-slot,
+fieldset.grid-container {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+fieldset.grid-container {
+    border: none;
+    margin-top: 16px;
+}
+
+fieldset.grid-container.pool-empty {
+    min-height: 60px;
+}
+
+fieldset.grid-container.pool-drop {
+    outline: 2px dashed currentColor;
+    outline-offset: 6px;
+    border-radius: 8px;
+}
+
 .login-button-container {
     display: flex;
     justify-content: center;
@@ -75,28 +137,26 @@ h3 {
     margin-bottom: auto;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     display: grid;
-    height: 100vh;
+    min-height: 100vh;
     max-width: calc(var(--card-max-width) * 2);
     align-content: start;
 }
 
-.xy-scroll-container {
-    background-color: var(--bg);
-    overflow: auto;
-    margin-top: 18px;
-    padding: 10px;
+.x-scroll-container {
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
-.teams-display {
+.events-overview-container {
+    background-color: var(--bg);
     overflow: auto;
     white-space: nowrap;
     width: 100%;
-    padding-left: 12px;
-    padding-right: 12px;
-    padding-bottom: 12px;
+    margin-top: 18px;
+    padding: 12px;
 }
 
-.teams-display-row {
+.events-overview-row {
     display: grid;
     grid-template-columns: 60px 120px 60px repeat(7, 180px);
     column-gap: 8px;
@@ -115,7 +175,7 @@ h3 {
     overflow: visible;
 }
 
-.teams-display-header {
+.events-overview-header {
     display: inline-block;
     font-size: 20px;
     text-align: center;
@@ -124,7 +184,7 @@ h3 {
     width: 100%;
 }
 
-.teams-display-item {
+.events-overview-item {
     display: inline-block;
     text-align: center;
     background-color: var(--card);
@@ -137,7 +197,7 @@ h3 {
     width: 100%;
 }
 
-.teams-display-sort-button {
+.events-overview-sort-button {
     background: transparent;
     border: none;
     color: inherit;
@@ -151,9 +211,11 @@ h3 {
     height: 100%;
     text-align: center;
     border-radius: 4px;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
-.teams-display-sort-button:hover {
+.events-overview-sort-button:hover {
     background: var(--button-hover);
 }
 
@@ -204,46 +266,6 @@ h3 {
     text-align: center;
 }*/
 
-a {
-    font-weight: 500;
-    color: #646cff;
-    text-decoration: inherit;
-}
-
-a:hover {
-    color: #535bf2;
-}
-
-button::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: white;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-button:not(:disabled):active::after {
-    opacity: 0.15;
-}
-
-button:hover {
-    background: var(--button-hover);
-}
-
-button:disabled {
-    background: var(--button-hover);
-    cursor: not-allowed;
-}
-
-button:focus {
-    outline: none;
-}
-
-button:focus-visible {
-    outline: 4px auto -webkit-focus-ring-color;
-}
-
 .animate-spin {
     animation: spin 1s cubic-bezier(0.17, 0.67, 0.83, 0.67) infinite;
 }
@@ -287,7 +309,10 @@ button:focus-visible {
 
 .alliance-grid {
     display: grid;
-    grid-template-columns: 60px repeat(4, minmax(120px, 1fr)) minmax(240px, 1.5fr);
+    grid-template-columns: 60px repeat(4, minmax(120px, 1fr)) minmax(
+            240px,
+            1.5fr
+        );
     gap: 6px;
     margin-top: 16px;
 }
@@ -374,28 +399,6 @@ button:focus-visible {
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
-fieldset.alliance-slot,
-fieldset.grid-container {
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-}
-
-fieldset.grid-container {
-    border: none;
-    margin-top: 16px;
-}
-
-fieldset.grid-container.pool-empty {
-    min-height: 60px;
-}
-
-fieldset.grid-container.pool-drop {
-    outline: 2px dashed currentColor;
-    outline-offset: 6px;
-    border-radius: 8px;
-}
-
 .alliance-rank {
     display: flex;
     align-items: center;
@@ -460,4 +463,48 @@ fieldset.grid-container.pool-drop {
     overflow-x: hidden;
     overflow-y: auto;
     max-height: 400px;
+}
+
+.scouter-leaderboard-container {
+    background-color: var(--bg);
+    overflow: hidden;
+    white-space: nowrap;
+    width: 100%;
+    margin-top: 18px;
+    padding: 12px;
+    justify-content: center;
+    align-items: center;
+}
+
+.scouter-leaderboard-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 60px;
+    column-gap: 8px;
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    margin-left: -12px;
+    padding-left: 12px;
+    padding-right: 12px;
+    overflow: visible;
+}
+
+.scouting-leaderboard-item {
+    display: inline-block;
+    text-align: center;
+    background-color: var(--card);
+    border-radius: 8px;
+    margin: 4px;
+    font-size: 20px;
+    min-height: 30px;
+    font-weight: bold;
+    min-width: 40px;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

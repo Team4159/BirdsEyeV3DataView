@@ -1,7 +1,11 @@
 import type { Firestore } from "firebase/firestore";
-import { fetchScoutedEvents, fetchScoutedEventsData } from "../firebase/fetchScoutedData.ts";
+import {
+  fetchScoutedEvents,
+  fetchScoutedEventsMatchDatas,
+  fetchScoutedEventsTeamDatas,
+} from "../firebase/fetchScoutedData.ts";
 
-export async function getEvents(firestore: Firestore): Promise<string[]> {
+export async function fetchEvents(firestore: Firestore): Promise<string[]> {
   const events: string[] = [];
   const data = await fetchScoutedEvents(firestore);
   data.forEach((doc) => {
@@ -11,11 +15,21 @@ export async function getEvents(firestore: Firestore): Promise<string[]> {
   return events;
 }
 
-export async function getTeamsFromEvents(
+export async function fetchTeamsFromEvents(
   firestore: Firestore,
   events: string[],
 ) {
-  const teamsMap = await fetchScoutedEventsData(firestore, events);
-
+  const teamsMap = await fetchScoutedEventsTeamDatas(firestore, events);
   return Array.from(teamsMap.values());
+}
+
+export async function fetchMatchDatasFromEvents(
+  firestore: Firestore,
+  events: string[],
+) {
+  const matchDatas = await fetchScoutedEventsMatchDatas(
+    firestore,
+    events,
+  );
+  return matchDatas;
 }

@@ -9,7 +9,7 @@ export function eventsLabel(
   const allAggregated =
     eventChoices.length > 0 && aggregateEvents.length > 1 && aggregateEvents.length === eventChoices.length;
   const allDisplayed =
-    eventChoices.length > 0 && displayEvents.length > 1 && displayEvents.length === aggregateEvents.length;
+    eventChoices.length > 0  && displayEvents.length === aggregateEvents.length;
   const aggregate = allAggregated
     ? "Aggregating all"
     : `Aggregating (${aggregateEvents.length}): ${aggregateEvents.length > 0 ? aggregateEvents.join(", ") : "None"}`;
