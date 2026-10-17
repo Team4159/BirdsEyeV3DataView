@@ -31,6 +31,7 @@ import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { Page } from "./pages/Page";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TeamOverviewPage } from "./pages/TeamOverviewPage";
 import { applyDarkMode } from "./ui/theme";
 import { getEvents, getTeamsFromEvents } from "./util/databaseFetcher";
 import { FrcTeam } from "./util/FrcTeam";
@@ -168,7 +169,7 @@ function App() {
     const unsubscribe = onSnapshot(
       collection(firestore, "events"),
       async () => {
-        setEventChoices(await getEvents(firestore));
+        setEventChoices((await getEvents(firestore)).reverse());
       },
     );
     return unsubscribe;
@@ -281,8 +282,16 @@ function App() {
           aggregateEvents={aggregateEvents}
           displayEvents={displayEvents}
           teams={teams}
+          onTeamClick={(team) => {
+            setSelectedTeam(team);
+            // setCurrentPage(Page.TeamOverview);
+          }}
         />
       </div>
+
+      {currentPage === Page.TeamOverview && (
+        <TeamOverviewPage selectedTeam={selectedTeam} />
+      )}
 
       <div hidden={currentPage !== Page.AllianceBuilder}>
         <AllianceBuilderPage

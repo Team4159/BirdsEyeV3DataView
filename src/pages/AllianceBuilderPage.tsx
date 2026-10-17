@@ -13,8 +13,9 @@ import {
   extendDataRange,
 } from "../util/DataRange";
 import { eventsLabel } from "../util/eventsLabel";
-import { FrcTeam } from "../util/FrcTeam";
+import type { FrcTeam } from "../util/FrcTeam";
 import { getStatColor } from "../util/getStatColor";
+import { getDisplayTeamData } from "../util/teamData";
 
 const PICK_COLUMNS = ["Captain", "1st Pick", "2nd Pick", "3rd Pick"];
 const ALLIANCE_COUNT = 8;
@@ -139,21 +140,7 @@ export function AllianceBuilderPage({
   // only teams with matches in the displayed events, with stats limited to those matches
   const teams = useMemo(() => {
     return allTeams.flatMap((team) => {
-      let display = false;
-      const matches = team.getMatches().filter((match) => {
-        if (displayEvents.includes(match.getEvent())) {
-          display = true;
-        }
-        return aggregateEvents.includes(match.getEvent());
-      });
-      if (!display || matches.length === 0) {
-        return [];
-      }
-      const filteredTeam = new FrcTeam(team.getTeamName());
-      matches.forEach((match) => {
-        filteredTeam.addMatch(match);
-      });
-      return [filteredTeam];
+      return getDisplayTeamData(team, aggregateEvents, displayEvents);
     });
   }, [allTeams, displayEvents, aggregateEvents]);
 

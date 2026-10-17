@@ -5,8 +5,9 @@ import {
   extendDataRange,
 } from "../util/DataRange";
 import { eventsLabel } from "../util/eventsLabel";
-import { FrcTeam } from "../util/FrcTeam";
+import type { FrcTeam } from "../util/FrcTeam";
 import { getStatColor } from "../util/getStatColor";
+import { getDisplayTeamData } from "../util/teamData";
 
 type DataRangeKey =
   | "avgScore"
@@ -92,6 +93,7 @@ type EventsOverviewPageProps = {
   aggregateEvents: string[];
   displayEvents: string[];
   teams: FrcTeam[];
+  onTeamClick: (team: FrcTeam) => void;
 };
 
 export function EventsOverviewPage({
@@ -99,6 +101,7 @@ export function EventsOverviewPage({
   aggregateEvents,
   displayEvents,
   teams,
+  onTeamClick
 }: EventsOverviewPageProps) {
   const headerMessage = useMemo(
     () => eventsLabel(eventChoices, aggregateEvents, displayEvents),
@@ -107,23 +110,7 @@ export function EventsOverviewPage({
 
   const displayedTeams = useMemo(() => {
     return teams.flatMap((team) => {
-      let display = false;
-      const matches = team
-        .getMatches()
-        .filter((match) => {
-          if (displayEvents.includes(match.getEvent())) {
-            display = true;
-          }
-          return aggregateEvents.includes(match.getEvent());
-        });
-      if (!display || matches.length === 0) {
-        return [];
-      }
-      const filteredTeam = new FrcTeam(team.getTeamName());
-      matches.forEach((match) => {
-        filteredTeam.addMatch(match);
-      });
-      return [filteredTeam];
+      return getDisplayTeamData(team, aggregateEvents, displayEvents);
     });
   }, [teams, aggregateEvents, displayEvents]);
 
@@ -164,8 +151,6 @@ export function EventsOverviewPage({
       );
     }
   };
-
-  const onTeamClick = console.log;
 
   function header(name: keyof typeof teamSortComparators) {
     return (
