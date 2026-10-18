@@ -24,6 +24,7 @@ export function ScouterLeaderboardPage({
   const [emailCounts, setEmailCounts] = useState<Map<string, number>>(
     new Map(),
   );
+  const [total, setTotal] = useState<number>(0);
   const emailCountEntries = useMemo(
     () => [...emailCounts.entries()].sort((a, b) => b[1] - a[1]),
     [emailCounts],
@@ -43,19 +44,25 @@ export function ScouterLeaderboardPage({
                 if (!email) {
                   continue;
                 }
-                if (!emailsToDisplay.includes(email) && displayEvents.includes(matchData.getEvent())) {
+                if (
+                  !emailsToDisplay.includes(email) &&
+                  displayEvents.includes(matchData.getEvent())
+                ) {
                   emailsToDisplay.push(email);
                 }
                 const currentCount = emailCounts.get(email) ?? 0;
                 emailCounts.set(email, currentCount + 1);
               }
             }
+            let total = 0;
             emailCounts.forEach((_, email) => {
               if (emailsToDisplay.includes(email)) {
+                total += emailCounts.get(email) ?? 0;
                 return;
               }
               emailCounts.delete(email);
-            })
+            });
+            setTotal(total);
             setEmailCounts(emailCounts);
           },
         );
@@ -73,6 +80,7 @@ export function ScouterLeaderboardPage({
     <div className="wide-card">
       <h1>Scouter Leaderboard</h1>
       <span className="text-container">{headerMessage}</span>
+      <span className="text-container">{`Total: ${total}`}</span>
       <div
         className="scouter-leaderboard-container"
         style={{
