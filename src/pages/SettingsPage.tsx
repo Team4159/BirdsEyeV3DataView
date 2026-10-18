@@ -28,7 +28,16 @@ export function SettingsPage({
       <div className="card">
         <div className="card-title-row">
           <h1>Aggregate Events</h1>
-          <div>
+          <div className="card-button-container">
+            <button
+              type="button"
+              disabled={eventChoices.length === 0}
+              onClick={toggleAllAggregateEvents}
+            >
+              {aggregateEvents.length === eventChoices.length
+                ? "Clear All"
+                : "Select All"}
+            </button>
             <button
               type="button"
               disabled={
@@ -38,15 +47,6 @@ export function SettingsPage({
               onClick={toggleAllUndisplayedAggregateEvents}
             >
               Clear Not Displayed
-            </button>
-            <button
-              type="button"
-              disabled={eventChoices.length === 0}
-              onClick={toggleAllAggregateEvents}
-            >
-              {aggregateEvents.length === eventChoices.length
-                ? "Clear All"
-                : "Select All"}
             </button>
           </div>
         </div>

@@ -141,6 +141,11 @@ fieldset.grid-container.pool-drop {
     align-content: start;
 }
 
+.card-button-container {
+    display: inline-flex;
+    flex-direction: row-reverse;
+}
+
 .x-scroll-container {
     overflow-x: auto;
     overflow-y: hidden;
