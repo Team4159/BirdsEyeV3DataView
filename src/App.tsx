@@ -5,7 +5,7 @@ import {
   LogOut,
   Trophy,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
 //firebase
@@ -32,11 +32,8 @@ import { Page } from "./pages/Page";
 import { ScouterLeaderboardPage } from "./pages/ScouterLeaderboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { applyDarkMode } from "./ui/theme";
-import {
-  fetchEvents,
-  fetchTeamsFromEvents,
-} from "./util/databaseFetcher";
-import { FrcTeam } from "./util/FrcTeam";
+import { fetchEvents, fetchTeamsFromEvents } from "./util/databaseFetcher";
+import type { FrcTeam } from "./util/FrcTeam";
 import type { MatchData } from "./util/matchData";
 
 // Your web app's Firebase configuration
@@ -60,7 +57,7 @@ function App() {
   const [autoLoginDone, setAutoLoginDone] = useState(false);
   const [currentPage, setCurrentPage] = useState<Page>(Page.Login);
   const [darkMode, _] = useState(true);
-  const [teams, setTeams] = useState([new FrcTeam("temp")]);
+  const [teams, setTeams] = useState<FrcTeam[]>([]);
   //possible events to filter by
   const [eventChoices, setEventChoices] = useState<string[]>([]);
   //events whose data is aggregated
@@ -69,19 +66,34 @@ function App() {
   const [displayEvents, setDisplayEvents] = useState<string[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<FrcTeam | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
-  const isDataUpdating = useRef<boolean>(false);
-  const dataUpdateIndex = useRef<number>(0);
+  const teamsUpdateIndex = useRef<number>(0);
+  const teamsUpdated = useRef<boolean>(false);
 
-  const updateData = useCallback(
+  const shouldUpdateTeams = useMemo(() => {
+    if (teamsUpdated.current) {
+      return false;
+    }
+    if (teamsUpdateIndex.current === 0) {
+      return false;
+    }
+    if (
+      teamsUpdateIndex.current > 0 &&
+      (currentPage === Page.Login || currentPage === Page.Settings)
+    ) {
+      return false;
+    }
+    return true;
+  }, [currentPage]);
+
+  const updateTeams = useCallback(
     async (firestore: Firestore) => {
-      const scopeTeamUpdateIndex = dataUpdateIndex.current + 1;
-      dataUpdateIndex.current = scopeTeamUpdateIndex;
+      const scopeTeamUpdateIndex = teamsUpdateIndex.current + 1;
+      teamsUpdateIndex.current = scopeTeamUpdateIndex;
       const newTeams = await fetchTeamsFromEvents(firestore, aggregateEvents);
-      if (scopeTeamUpdateIndex !== dataUpdateIndex.current) {
+      if (scopeTeamUpdateIndex !== teamsUpdateIndex.current) {
         return;
       }
 
-      // setEventChoices(await getEvents(firestore));
       setTeams(newTeams);
 
       if (selectedTeam) {
@@ -107,11 +119,14 @@ function App() {
           setSelectedMatch(updatedMatch);
         }
       }
+
+      teamsUpdated.current = true;
     },
     [aggregateEvents, selectedMatch, selectedTeam],
   );
 
   function toggleAggregateEvent(event: string) {
+    teamsUpdated.current = false;
     if (aggregateEvents.includes(event)) {
       // removing an aggregate event also turns off its display toggle
       setDisplayEvents((prev) => prev.filter((e) => e !== event));
@@ -121,33 +136,8 @@ function App() {
     }
   }
 
-  // when everything is selected, clicking the button clears the selection instead
-  function toggleAllAggregateEvents() {
-    if (aggregateEvents.length === eventChoices.length) {
-      setAggregateEvents([]);
-      setDisplayEvents([]);
-    } else {
-      setAggregateEvents([...eventChoices]);
-    }
-  }
-
-  function toggleAllUndisplayedAggregateEvents() {
-    if (aggregateEvents.length === displayEvents.length) {
-      setAggregateEvents([...eventChoices]);
-    } else {
-      setAggregateEvents([...displayEvents]);
-    }
-  }
-
-  function toggleAllDisplayEvents() {
-    if (displayEvents.length === aggregateEvents.length) {
-      setDisplayEvents([]);
-    } else {
-      setDisplayEvents([...aggregateEvents]);
-    }
-  }
-
   function toggleDisplayEvent(event: string) {
+    teamsUpdated.current = false;
     setDisplayEvents((prev) => {
       if (prev.includes(event)) {
         return prev.filter((e) => e !== event);
@@ -157,11 +147,40 @@ function App() {
     });
   }
 
+  // when everything is selected, clicking the button clears the selection instead
+  function toggleAllAggregateEvents() {
+    teamsUpdated.current = false;
+    if (aggregateEvents.length === eventChoices.length) {
+      setAggregateEvents([]);
+      setDisplayEvents([]);
+    } else {
+      setAggregateEvents([...eventChoices]);
+    }
+  }
+
+  function toggleAllUndisplayedAggregateEvents() {
+    teamsUpdated.current = false;
+    if (aggregateEvents.length === displayEvents.length) {
+      setAggregateEvents([...eventChoices]);
+    } else {
+      setAggregateEvents([...displayEvents]);
+    }
+  }
+
+  function toggleAllDisplayEvents() {
+    teamsUpdated.current = false;
+    if (displayEvents.length === aggregateEvents.length) {
+      setDisplayEvents([]);
+    } else {
+      setDisplayEvents([...aggregateEvents]);
+    }
+  }
+
   //run when app loads
   useEffect(() => {
     onAuthStateChanged(auth, (user) => {
       setAutoLoginDone(true);
-      if (user != null) {
+      if (user !== null) {
         setCurrentPage(Page.Settings);
       } else {
         setCurrentPage(Page.Login);
@@ -170,41 +189,35 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!autoLoginDone) {
-      return;
+    if (autoLoginDone && teamsUpdateIndex.current === 0) {
+      (async () => {
+        await updateTeams(firestore);
+      })();
     }
-    if (currentPage === Page.Login) {
-      return;
-    }
+  }, [autoLoginDone, updateTeams]);
+
+  useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(firestore, "events"),
       async () => {
-        setEventChoices((await fetchEvents(firestore)).reverse());
+        setEventChoices((await fetchEvents(firestore)));
       },
     );
     return unsubscribe;
-  }, [autoLoginDone, currentPage]);
+  }, []);
 
   useEffect(() => {
-    if (!autoLoginDone) {
-      return;
-    }
-    if (currentPage === Page.Login) {
+    if (!shouldUpdateTeams) {
       return;
     }
     const unsubscribe = onSnapshot(
       collectionGroup(firestore, "datasets"),
       async () => {
-        if (isDataUpdating.current) {
-          return;
-        }
-        isDataUpdating.current = true;
-        await updateData(firestore);
-        isDataUpdating.current = false;
+        await updateTeams(firestore);
       },
     );
     return unsubscribe;
-  }, [updateData, autoLoginDone, currentPage]);
+  }, [updateTeams, shouldUpdateTeams]);
 
   useEffect(() => {
     applyDarkMode(darkMode);
@@ -282,7 +295,9 @@ function App() {
           toggleAggregateEvent={toggleAggregateEvent}
           toggleDisplayEvent={toggleDisplayEvent}
           toggleAllAggregateEvents={toggleAllAggregateEvents}
-          toggleAllUndisplayedAggregateEvents={toggleAllUndisplayedAggregateEvents}
+          toggleAllUndisplayedAggregateEvents={
+            toggleAllUndisplayedAggregateEvents
+          }
           toggleAllDisplayEvents={toggleAllDisplayEvents}
         />
       )}

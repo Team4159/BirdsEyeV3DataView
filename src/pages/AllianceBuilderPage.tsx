@@ -138,11 +138,12 @@ export function AllianceBuilderPage({
   );
 
   // only teams with matches in the displayed events, with stats limited to those matches
-  const teams = useMemo(() => {
+  const teams = useMemo<FrcTeam[]>(() => {
     return allTeams.flatMap((team) => {
       return getDisplayTeamData(team, aggregateEvents, displayEvents);
     });
   }, [allTeams, displayEvents, aggregateEvents]);
+  const teamNames = useMemo<Set<string>>(() => new Set(teams.flatMap(teams => teams.getTeamName())), [teams]);
 
   const [board, setBoard] = useState<Board>(emptyBoard);
   const [dragTeam, setDragTeam] = useState<string | null>(null);
@@ -224,6 +225,19 @@ export function AllianceBuilderPage({
     },
     [],
   );
+
+  useEffect(() => {
+    for (let i = 0; i < board.slots.length; i++) {
+      const slot = board.slots[i];
+      if (slot === null) {
+        continue;
+      }
+      if (teamNames.has(slot)) {
+        continue;
+      }
+      board.slots[i] = null;
+    }
+  }, [board.slots, teamNames]);
 
   // eases the overlay toward the pointer and target size without re-rendering
   useLayoutEffect(() => {
