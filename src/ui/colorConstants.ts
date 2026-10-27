@@ -13,3 +13,4 @@ export const teleopFuelBorderColor = "rgba(255, 206, 86, 1)";
 export const endgameClimbBorderColor = "rgba(75, 192, 192, 1)";
 export const autoClimbBorderColor = "rgba(153, 102, 255, 1)";
 export const foulBorderColor = "rgba(255, 159, 64, 1)";
+export const driverRatingBorderColor = "rgba(255, 87, 34, 1)";

@@ -33,13 +33,12 @@ export function compareMatchKeys(a: string, b: string): number {
     return typeOrder[A.type] - typeOrder[B.type];
   }
 
-  // 2. compare match number
-  if (A.matchNumber !== B.matchNumber) {
-    return A.matchNumber - B.matchNumber;
+  // Elimination matches are grouped by set, then ordered by match number.
+  if (A.type !== "qm" && A.setNumber !== B.setNumber) {
+    return A.setNumber - B.setNumber;
   }
 
-  // 3. compare set number
-  return A.setNumber - B.setNumber;
+  return A.matchNumber - B.matchNumber;
 }
 
 export function getMatchTypeFromKey(key: string): string {
@@ -87,7 +86,7 @@ export function formatMatchLabel(key: string): string {
   const setNumber = getSetNumberFromKey(key);
 
   if (type === "Qualification") {
-    return `QM ${matchNumber}`;
+    return `Qualification ${matchNumber}`;
   }
 
   if (type === "Semifinal") {
@@ -96,6 +95,26 @@ export function formatMatchLabel(key: string): string {
 
   if (type === "Final") {
     return `Final ${matchNumber}`;
+  }
+
+  return `${type} ${setNumber} - Match ${matchNumber}`;
+}
+
+export function formatShortMatchLabel(key: string): string {
+  const type = getMatchTypeFromKey(key);
+  const matchNumber = getMatchNumberFromKey(key);
+  const setNumber = getSetNumberFromKey(key);
+
+  if (type === "Qualification") {
+    return `QM ${matchNumber}`;
+  }
+
+  if (type === "Semifinal") {
+    return `SF ${setNumber}`;
+  }
+
+  if (type === "Final") {
+    return `F ${matchNumber}`;
   }
 
   return `${type} ${setNumber} - Match ${matchNumber}`;

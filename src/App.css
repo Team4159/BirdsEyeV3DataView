@@ -151,6 +151,80 @@ fieldset.grid-container.pool-drop {
     overflow-y: hidden;
 }
 
+.match-line-graph-container {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-gutter: stable;
+}
+
+.match-line-graph-chart {
+    box-sizing: border-box;
+    position: relative;
+    width: 100%;
+    height: 400px;
+    overflow: hidden;
+}
+
+.match-line-graph-legend {
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    align-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    min-height: 28px;
+    height: auto;
+    border: 0;
+    margin: 0;
+    padding: 0;
+}
+
+@media (max-width: 700px) {
+    .match-line-graph-legend {
+        gap: 6px;
+    }
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.match-line-graph-legend button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    color: var(--text);
+    background: transparent;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.match-line-graph-legend button.hidden {
+    opacity: 0.45;
+}
+
+.match-line-graph-legend-mark {
+    width: 14px;
+    height: 3px;
+    display: inline-block;
+}
+
 .events-overview-container {
     background-color: var(--bg);
     overflow: auto;

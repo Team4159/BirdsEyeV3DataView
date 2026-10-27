@@ -35,6 +35,7 @@ import { applyDarkMode } from "./ui/theme";
 import { fetchEvents, fetchTeamsFromEvents } from "./util/databaseFetcher";
 import type { FrcTeam } from "./util/FrcTeam";
 import type { MatchData } from "./util/matchData";
+import { TeamOverviewPage } from "./pages/TeamOverviewPage";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -310,14 +311,14 @@ function App() {
           teams={teams}
           onTeamClick={(team) => {
             setSelectedTeam(team);
-            // setCurrentPage(Page.TeamOverview);
+            setCurrentPage(Page.TeamOverview);
           }}
         />
       </div>
 
-      {/*{currentPage === Page.TeamOverview && (
+      {currentPage === Page.TeamOverview && (
         <TeamOverviewPage selectedTeam={selectedTeam} />
-      )}*/}
+      )}
 
       <div hidden={currentPage !== Page.AllianceBuilder}>
         <AllianceBuilderPage

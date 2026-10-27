@@ -1,117 +1,595 @@
-// import Box from "@mui/material/Box";
-// import { ChartsContainer } from "@mui/x-charts/ChartsContainer";
-// import type { FrcTeam } from "../util/FrcTeam";
-// import {
-//   AUTO_FUEL_POINTS,
-//   FOUL_POINTS,
-//   TECH_FOUL_POINTS,
-//   TELEOP_FUEL_POINTS,
-// } from "../util/pointValues";
-// import {
-//   autoClimbBorderColor,
-//   autoClimbColor,
-//   autoFuelBorderColor,
-//   autoFuelColor,
-//   endgameClimbBorderColor,
-//   endgameClimbColor,
-//   foulBorderColor,
-//   foulColor,
-//   teleopFuelBorderColor,
-//   teleopFuelColor,
-//   totalPointsBorderColor,
-//   totalPointsColor,
-// } from "./colorConstants";
-// import { BarPlot, ChartsAxisHighlight, LineHighlightPlot, LinePlot, type LineSeriesType } from "@mui/x-charts";
-//
-// type MatchLineGraphProps = {
-//   team: FrcTeam;
-// };
-//
-// export const MatchLineGraph = ({ team }: MatchLineGraphProps) => {
-//   const labels = team.getMatchNameArray();
-//
-//   const data: LineSeriesType[] = [
-//     {
-//       type: "line",
-//       yAxisId: "price",
-//       color: "green",
-//       label: "Total",
-//       data: team.getMatches().map((value) => value.getPoints()),
-//     },
-//     {
-//       type: "line",
-//       yAxisId: "price",
-//       color: "green",
-//       label: "Auto Fuels",
-//       data: team
-//         .getMatches()
-//         .map((value) => value.getAutoFuels() * AUTO_FUEL_POINTS),
-//     },
-//     {
-//       type: "line",
-//       yAxisId: "price",
-//       color: "green",
-//       label: "Auto Climb",
-//       data: team.getMatches().map((value) => value.getAutoClimbPoints()),
-//     },
-//     {
-//       type: "line",
-//       yAxisId: "price",
-//       color: "green",
-//       label: "Teleop Fuels",
-//       data: team
-//         .getMatches()
-//         .map((value) => value.getTeleopFuels() * TELEOP_FUEL_POINTS),
-//     },
-//     {
-//       type: "line",
-//       yAxisId: "price",
-//       color: "green",
-//       label: "Endgame Climb",
-//       data: team.getMatches().map((value) => value.getEndgameClimbPoints()),
-//     },
-//     {
-//       type: "line",
-//       yAxisId: "price",
-//       color: "red",
-//       label: "Fouls and Tech Fouls",
-//       data: team
-//         .getMatches()
-//         .map(
-//           (value) =>
-//             value.getFouls() * FOUL_POINTS +
-//             value.getTechFouls() * TECH_FOUL_POINTS,
-//         ),
-//     },
-//   ];
-//   return (
-//     <Box sx={{ width: "100%", height: 400 }}>
-//       <ChartsContainer
-//         series={data}
-//         xAxis={[
-//           {
-//             id: "date",
-//             data: team.getMatches(),
-//             scaleType: "band",
-//             height: 100,
-//           },
-//         ]}
-//         yAxis={[
-//           { id: "price", scaleType: "linear", position: "left", width: 50 },
-//           {
-//             id: "volume",
-//             scaleType: "linear",
-//             position: "right",
-//             width: 100,
-//           },
-//         ]}
-//       >
-//         <ChartsAxisHighlight x="line" />
-//         <BarPlot />
-//         <LinePlot />
-//
-//         <LineHighlightPlot />
-//       </ChartsContainer>
-//     </Box>
-//   );
-// };
+import { useDrawingArea } from "@mui/x-charts/hooks";
+import {
+  LineChart,
+  LineHighlightElement,
+  type LineHighlightElementProps,
+} from "@mui/x-charts/LineChart";
+import type { ComponentPropsWithoutRef } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { FrcTeam } from "../util/FrcTeam";
+import { formatMatchLabel, formatShortMatchLabel } from "../util/matchNameUtil";
+import {
+  autoClimbBorderColor,
+  autoFuelBorderColor,
+  driverRatingBorderColor,
+  foulBorderColor,
+  techFoulBorderColor,
+  teleopFuelBorderColor,
+  totalPointsBorderColor,
+} from "./colorConstants";
+
+type MatchLineGraphProps = {
+  team: FrcTeam;
+};
+
+type ScoreSeriesId =
+  | "total"
+  | "auto"
+  | "teleop"
+  | "climb"
+  | "driverRating"
+  | "fouls"
+  | "majorFouls";
+
+type EventBand = {
+  event: string;
+  start: number;
+  end: number;
+};
+
+type EventBandContextValue = {
+  bands: EventBand[];
+  matchCount: number;
+  backgroundSeriesId: ScoreSeriesId | null;
+};
+
+const areaColors: Record<Exclude<ScoreSeriesId, "driverRating">, string> = {
+  total: totalPointsBorderColor,
+  auto: autoFuelBorderColor,
+  teleop: teleopFuelBorderColor,
+  climb: autoClimbBorderColor,
+  fouls: foulBorderColor,
+  majorFouls: techFoulBorderColor,
+};
+
+const seriesLayer: Record<ScoreSeriesId, number> = {
+  total: 7,
+  auto: 6,
+  teleop: 5,
+  climb: 4,
+  driverRating: 3,
+  fouls: 2,
+  majorFouls: 1,
+};
+
+const EVENT_BAND_COLORS = [
+  "rgba(54, 162, 235, 0.14)",
+  "rgba(255, 206, 86, 0.14)",
+  "rgba(75, 192, 192, 0.14)",
+  "rgba(153, 102, 255, 0.14)",
+  "rgba(255, 159, 64, 0.14)",
+];
+const DRIVER_RATING_AXIS_MAXIMUM = 5.5;
+
+const SCORE_SERIES = [
+  { id: "total", label: "Total", color: totalPointsBorderColor },
+  { id: "auto", label: "Auto", color: autoFuelBorderColor },
+  { id: "teleop", label: "Teleop", color: teleopFuelBorderColor },
+  { id: "climb", label: "Climb", color: autoClimbBorderColor },
+  {
+    id: "driverRating",
+    label: "Driver Rating",
+    color: driverRatingBorderColor,
+  },
+  { id: "fouls", label: "Fouls", color: foulBorderColor },
+  { id: "majorFouls", label: "Major Fouls", color: techFoulBorderColor },
+] as const satisfies ReadonlyArray<{
+  id: ScoreSeriesId;
+  label: string;
+  color: string;
+}>;
+
+type GradientAreaProps = ComponentPropsWithoutRef<"path"> & {
+  d: string;
+  ownerState: {
+    seriesId: string | number;
+  };
+  skipAnimation?: boolean;
+};
+
+function NoDataOverlay(
+  props: ComponentPropsWithoutRef<"text"> & { sx?: unknown },
+) {
+  const drawingArea = useDrawingArea();
+  const { sx: _sx, ...textProps } = props;
+  return (
+    <text
+      {...textProps}
+      x={drawingArea.left + drawingArea.width / 2}
+      y={drawingArea.top + drawingArea.height / 2}
+      textAnchor="middle"
+      fill="var(--text)"
+      fontStyle="italic"
+    >
+      No data to display
+    </text>
+  );
+}
+
+const EventBandContext = createContext<EventBandContextValue>({
+  bands: [],
+  matchCount: 0,
+  backgroundSeriesId: null,
+});
+
+function getBandPosition(position: number, matchCount: number): number {
+  if (matchCount === 1) {
+    return position === 0 ? 0 : 1;
+  }
+
+  return position / (matchCount - 1);
+}
+
+function getBandBounds(
+  band: EventBand,
+  matchCount: number,
+): { start: number; end: number } {
+  const start = getBandPosition(
+    band.start === 0 ? 0 : band.start - 0.5,
+    matchCount,
+  );
+  const end = getBandPosition(
+    matchCount === 1
+      ? 1
+      : band.end === matchCount
+        ? matchCount - 1
+        : band.end - 0.5,
+    matchCount,
+  );
+
+  return { start, end };
+}
+
+function getChartData<T>(
+  matches: Match[],
+  isSingleMatch: boolean,
+  getValue: (match: Match) => T,
+): T[] {
+  return isSingleMatch
+    ? [getValue(matches[0]), getValue(matches[0]), getValue(matches[0])]
+    : matches.map(getValue);
+}
+
+type Match = ReturnType<FrcTeam["getMatches"]>[number];
+
+function getSeriesData<T>(
+  matches: Match[],
+  isSingleMatch: boolean,
+  hiddenSeries: Set<ScoreSeriesId>,
+  seriesId: ScoreSeriesId,
+  getValue: (match: Match) => T,
+): Array<T | null> {
+  return getChartData(
+    matches,
+    isSingleMatch,
+    hiddenSeries.has(seriesId) ? () => null : getValue,
+  );
+}
+
+function createChartSeries(
+  matches: Match[],
+  isSingleMatch: boolean,
+  hiddenSeries: Set<ScoreSeriesId>,
+) {
+  const series = [
+    ["majorFouls", "Major Fouls", techFoulBorderColor, (match: Match) => match.getTechFouls()],
+    ["fouls", "Fouls", foulBorderColor, (match: Match) => match.getFouls()],
+    [
+      "driverRating",
+      "Driver Rating",
+      driverRatingBorderColor,
+      (match: Match) => match.getDriverRating(),
+    ],
+    ["climb", "Climb", autoClimbBorderColor, (match: Match) => match.getClimbPoints()],
+    [
+      "teleop",
+      "Teleop",
+      teleopFuelBorderColor,
+      (match: Match) => match.getTeleopPoints(),
+    ],
+    ["auto", "Auto", autoFuelBorderColor, (match: Match) => match.getAutoPoints()],
+    ["total", "Total", totalPointsBorderColor, (match: Match) => match.getPoints()],
+  ] as const;
+
+  return series.map(([id, label, color, getValue]) => ({
+    id,
+    ...(id === "driverRating" ? { yAxisId: "driverRating" } : {}),
+    data: getSeriesData(
+      matches,
+      isSingleMatch,
+      hiddenSeries,
+      id,
+      getValue,
+    ),
+    label,
+    color,
+    ...(id !== "driverRating" ? { area: true } : {}),
+    showMark: false,
+  }));
+}
+
+function getPointAxisConfig(scoreValues: number[]) {
+  const scoreMinimum = Math.min(...scoreValues);
+  const scoreMaximum = Math.max(...scoreValues);
+  const axisMinimum = scoreMinimum < 0 ? scoreMinimum : 0;
+  const rawTickStep = Math.max(1, (scoreMaximum - axisMinimum) / 5);
+  const tickMagnitude = 10 ** Math.floor(Math.log10(rawTickStep));
+  const normalizedTickStep = rawTickStep / tickMagnitude;
+  const tickStep =
+    (normalizedTickStep <= 1
+      ? 1
+      : normalizedTickStep <= 2
+        ? 2
+        : normalizedTickStep <= 5
+          ? 5
+          : 10) * tickMagnitude;
+  const tickInterval = Math.max(5, tickStep);
+  const minimum = Math.floor(axisMinimum / tickInterval) * tickInterval;
+  const maximum = Math.max(
+    Math.ceil(scoreMaximum / tickStep) * tickStep,
+    minimum + tickInterval,
+  );
+  const tickCount = Math.max(
+    2,
+    Math.floor((maximum - minimum) / tickInterval) + 1,
+  );
+  const ticks = Array.from(
+    { length: tickCount },
+    (_, index) => minimum + ((maximum - minimum) * index) / (tickCount - 1),
+  );
+
+  return {
+    min: minimum,
+    max: minimum + (maximum - minimum) * (DRIVER_RATING_AXIS_MAXIMUM / 5),
+    ticks,
+  };
+}
+
+function GradientArea({ d, ownerState, skipAnimation, ...pathProps }: GradientAreaProps) {
+  const drawingArea = useDrawingArea();
+  const { bands, matchCount, backgroundSeriesId } =
+    useContext(EventBandContext);
+  const seriesId = String(ownerState.seriesId) as ScoreSeriesId;
+  const gradientId = `match-score-gradient-${seriesId}`;
+  const color =
+    seriesId === "driverRating" ? "var(--text)" : areaColors[seriesId];
+
+  return (
+    <>
+      {ownerState.seriesId === backgroundSeriesId &&
+        bands.map((band, index) => (
+          <EventBandOverlay
+            key={band.event}
+            band={band}
+            index={index}
+            matchCount={matchCount}
+            drawingArea={drawingArea}
+          />
+        ))}
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.55" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path
+        {...pathProps}
+        d={d}
+        data-series-id={seriesId}
+        fill={`url(#${gradientId})`}
+        stroke="none"
+        style={{ zIndex: seriesLayer[seriesId] }}
+      />
+    </>
+  );
+}
+
+function EventBandOverlay({
+  band,
+  index,
+  matchCount,
+  drawingArea,
+}: {
+  band: EventBand;
+  index: number;
+  matchCount: number;
+  drawingArea: ReturnType<typeof useDrawingArea>;
+}) {
+  const { start, end } = getBandBounds(band, matchCount);
+  const color = EVENT_BAND_COLORS[index % EVENT_BAND_COLORS.length];
+  const center = (start + end) / 2;
+
+  return (
+    <g>
+      <rect
+        x={drawingArea.left + start * drawingArea.width}
+        y={drawingArea.top}
+        width={(end - start) * drawingArea.width}
+        height={drawingArea.height}
+        fill={color}
+      />
+      <text
+        x={drawingArea.left + center * drawingArea.width}
+        y={drawingArea.top + 16}
+        textAnchor="middle"
+        fill={color.replace("0.14", "0.8")}
+        fontWeight={700}
+        fontSize={12}
+      >
+        {band.event}
+      </text>
+    </g>
+  );
+}
+
+function CenterLineHighlight(props: LineHighlightElementProps) {
+  const drawingArea = useDrawingArea();
+  const { backgroundSeriesId } = useContext(EventBandContext);
+  const centerX = drawingArea.left + drawingArea.width / 2;
+  return (
+    <>
+      {props.seriesId === backgroundSeriesId && (
+        <path
+          className="MuiChartsAxisHighlight-root"
+          d={`M ${centerX} ${drawingArea.top} V ${drawingArea.top + drawingArea.height}`}
+          pointerEvents="none"
+          style={{ strokeDasharray: "5 2" }}
+        />
+      )}
+      <LineHighlightElement {...props} x={centerX} />
+    </>
+  );
+}
+
+export function MatchLineGraph({ team }: MatchLineGraphProps) {
+  const [hiddenSeries, setHiddenSeries] = useState<Set<ScoreSeriesId>>(
+    new Set(),
+  );
+  const [chartWidth, setChartWidth] = useState(0);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const matches = team.getMatches();
+  const isSingleMatch = matches.length === 1;
+  useEffect(() => {
+    const element = chartContainerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      setChartWidth(Math.floor(entries[0]?.contentRect.width ?? 0));
+    });
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  const maxVisibleLabels = Math.max(
+    3,
+    Math.floor((chartWidth - 120) / 55),
+  );
+  const labelInterval = Math.max(
+    1,
+    Math.ceil(matches.length / maxVisibleLabels),
+  );
+  const axisMargin = 44;
+  const scoreValues = matches.flatMap((match) => [
+    match.getPoints(),
+    match.getAutoPoints(),
+    match.getTeleopPoints(),
+    match.getClimbPoints(),
+    match.getFouls(),
+    match.getTechFouls(),
+  ]);
+  const pointAxis = getPointAxisConfig(scoreValues);
+  const visibleAreaSeries = SCORE_SERIES.filter(
+    (series) => series.id !== "driverRating" && !hiddenSeries.has(series.id),
+  ).map((series) => series.id);
+  const backgroundSeriesId = visibleAreaSeries.at(-1) ?? null;
+  const toggleSeries = (seriesId: ScoreSeriesId) => {
+    setHiddenSeries((current) => {
+      const next = new Set(current);
+      if (next.has(seriesId)) {
+        next.delete(seriesId);
+      } else {
+        next.add(seriesId);
+      }
+      return next;
+    });
+  };
+  const eventBands = useMemo(
+    () =>
+      matches.reduce<EventBand[]>((bands, match, index) => {
+        const event = match.getEvent();
+        const previousBand = bands.at(-1);
+        if (previousBand?.event === event) {
+          previousBand.end = index + 1;
+        } else {
+          bands.push({ event, start: index, end: index + 1 });
+        }
+        return bands;
+      }, []),
+    [matches],
+  );
+  if (matches.length === 0) {
+    return (
+      <p style={{ color: "var(--text)", fontStyle: "italic" }}>
+        No match data available for this team.
+      </p>
+    );
+  }
+
+  return (
+    <div className="match-line-graph-container">
+      <fieldset className="match-line-graph-legend">
+        <legend className="visually-hidden">Score series</legend>
+        {SCORE_SERIES.map((series) => {
+          const hidden = hiddenSeries.has(series.id);
+          return (
+            <button
+              key={series.id}
+              type="button"
+              aria-pressed={!hidden}
+              className={hidden ? "hidden" : undefined}
+              onClick={() => toggleSeries(series.id)}
+            >
+              <span
+                className="match-line-graph-legend-mark"
+                style={{ backgroundColor: series.color }}
+              />
+              {series.label}
+            </button>
+          );
+        })}
+      </fieldset>
+      <div
+        ref={chartContainerRef}
+        className="match-line-graph-chart"
+        role="application"
+      >
+        <EventBandContext.Provider
+          value={{
+            bands: eventBands,
+            matchCount: matches.length,
+            backgroundSeriesId,
+          }}
+        >
+          <LineChart
+            hideLegend
+            axisHighlight={{
+              x:
+                hiddenSeries.size === SCORE_SERIES.length || isSingleMatch
+                  ? "none"
+                  : "line",
+              y: "none",
+            }}
+            xAxis={[
+              {
+                scaleType: "point",
+                data: isSingleMatch
+                  ? [0, 1, 2]
+                  : matches.map((match) => match.getMatchKey()),
+                label: "Match",
+                valueFormatter: (value, context) => {
+                  const matchKey = isSingleMatch
+                    ? matches[0].getMatchKey()
+                    : String(value);
+                  return context.location === "tooltip"
+                    ? formatMatchLabel(matchKey)
+                    : formatShortMatchLabel(matchKey);
+                },
+                tickLabelInterval: (_value, index) =>
+                  isSingleMatch ? index === 1 : index % labelInterval === 0,
+                tickLabelMinGap: 24,
+              },
+            ]}
+            yAxis={[
+              {
+                label: "Points",
+                min: pointAxis.min,
+                max: pointAxis.max,
+                tickInterval: pointAxis.ticks,
+                domainLimit: "strict",
+              },
+              {
+                id: "driverRating",
+                label: "Driver Rating",
+                min: 0,
+                max: DRIVER_RATING_AXIS_MAXIMUM,
+                tickInterval: [0, 1, 2, 3, 4, 5],
+                domainLimit: "strict",
+                position: "right",
+              },
+            ]}
+            series={createChartSeries(
+              matches,
+              isSingleMatch,
+              hiddenSeries,
+            ).filter((series) => !hiddenSeries.has(series.id))}
+            slots={{
+              area: GradientArea,
+              noDataOverlay: NoDataOverlay,
+              ...(isSingleMatch ? { lineHighlight: CenterLineHighlight } : {}),
+            }}
+            slotProps={{
+              axisLabel: {
+                style: {
+                  fontWeight: 400,
+                },
+              },
+              tooltip: {
+                trigger: "axis",
+              },
+            }}
+            skipAnimation={true}
+            height={400}
+            margin={{
+              left: axisMargin,
+              right: axisMargin,
+              top: 20,
+              bottom: 60,
+            }}
+            sx={{
+              width: "100%",
+              minWidth: 0,
+              color: "var(--text)",
+              "&& .MuiChartsAxis-tickLabel": {
+                color: "var(--text)",
+                fill: "var(--text)",
+                fontWeight: 400,
+                fontStyle: "italic",
+              },
+              "&& .MuiChartsAxis-label": {
+                color: "var(--text)",
+                fill: "var(--text)",
+              },
+              "& .MuiChartsLegend-root, & .MuiChartsLegend-series": {
+                color: "var(--text)",
+              },
+              "&& .MuiChartsAxis-line, && .MuiChartsAxis-tick, && .MuiChartsGrid-line":
+                {
+                  stroke: "var(--text)",
+                },
+              "&& .MuiChartsAxisHighlight-root": {
+                stroke: "var(--text)",
+              },
+              "& .MuiChartsTooltip-table tbody": {
+                display: "flex",
+                flexDirection: "column-reverse",
+              },
+              "& .MuiLineElement-root": {
+                strokeWidth: 3,
+                "&[data-series-id='total']": { zIndex: seriesLayer.total },
+                "&[data-series-id='auto']": { zIndex: seriesLayer.auto },
+                "&[data-series-id='teleop']": { zIndex: seriesLayer.teleop },
+                "&[data-series-id='climb']": { zIndex: seriesLayer.climb },
+                "&[data-series-id='driverRating']": {
+                  zIndex: seriesLayer.driverRating,
+                },
+                "&[data-series-id='fouls']": { zIndex: seriesLayer.fouls },
+                "&[data-series-id='majorFouls']": {
+                  zIndex: seriesLayer.majorFouls,
+                },
+              },
+            }}
+          />
+        </EventBandContext.Provider>
+      </div>
+    </div>
+  );
+}
