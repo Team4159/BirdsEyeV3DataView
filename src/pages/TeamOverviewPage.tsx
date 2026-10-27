@@ -13,7 +13,10 @@ export function TeamOverviewPage({ selectedTeam }: TeamOverviewPageProps) {
         {selectedTeam ? `: ${selectedTeam.getTeamName().substring(3)}` : ""}
       </h1>
       {selectedTeam ? (
-        <MatchLineGraph team={selectedTeam} />
+        <>
+          <MatchLineGraph team={selectedTeam} seriesType={"pointsAndDriverRating"} />
+          <MatchLineGraph team={selectedTeam} seriesType={"fouls"} />
+        </>
       ) : (
         <p>No team selected.</p>
       )}

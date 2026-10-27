@@ -27,6 +27,7 @@ import {
 
 type MatchLineGraphProps = {
   team: FrcTeam;
+  seriesType: SeriesType;
 };
 
 type ScoreSeriesId =
@@ -169,6 +170,8 @@ function getChartData<T>(
 
 type Match = ReturnType<FrcTeam["getMatches"]>[number];
 
+type SeriesType = "pointsAndDriverRating" | "fouls";
+
 function getSeriesData<T>(
   matches: Match[],
   isSingleMatch: boolean,
@@ -187,47 +190,56 @@ function createChartSeries(
   matches: Match[],
   isSingleMatch: boolean,
   hiddenSeries: Set<ScoreSeriesId>,
+  seriesType: SeriesType,
 ) {
   const round = (value: number) => Math.round(value * 100) / 100;
-  const series = [
-    [
-      "majorFouls",
-      "Major Fouls",
-      techFoulBorderColor,
-      (match: Match) => round(match.getTechFouls()),
-    ],
-    ["fouls", "Fouls", foulBorderColor, (match: Match) => match.getFouls()],
-    [
-      "driverRating",
-      "Driver Rating",
-      driverRatingBorderColor,
-      (match: Match) => round(match.getDriverRating()),
-    ],
-    [
-      "climb",
-      "Climb",
-      autoClimbBorderColor,
-      (match: Match) => round(match.getClimbPoints()),
-    ],
-    [
-      "teleop",
-      "Teleop",
-      teleopFuelBorderColor,
-      (match: Match) => round(match.getTeleopPoints()),
-    ],
-    [
-      "auto",
-      "Auto",
-      autoFuelBorderColor,
-      (match: Match) => round(match.getAutoPoints()),
-    ],
-    [
-      "total",
-      "Total",
-      totalPointsBorderColor,
-      (match: Match) => round(match.getPoints()),
-    ],
-  ] as const;
+  const series = (() => {
+    switch (seriesType) {
+      case "pointsAndDriverRating": 
+        return [
+          [
+            "driverRating",
+            "Driver Rating",
+            driverRatingBorderColor,
+            (match: Match) => round(match.getDriverRating()),
+          ],
+          [
+            "climb",
+            "Climb",
+            autoClimbBorderColor,
+            (match: Match) => round(match.getClimbPoints()),
+          ],
+          [
+            "teleop",
+            "Teleop",
+            teleopFuelBorderColor,
+            (match: Match) => round(match.getTeleopPoints()),
+          ],
+          [
+            "auto",
+            "Auto",
+            autoFuelBorderColor,
+            (match: Match) => round(match.getAutoPoints()),
+          ],
+          [
+            "total",
+            "Total",
+            totalPointsBorderColor,
+            (match: Match) => round(match.getPoints()),
+          ],
+        ]
+      case "fouls": 
+        return [
+          [
+            "majorFouls",
+            "Major Fouls",
+            techFoulBorderColor,
+            (match: Match) => round(match.getTechFouls()),
+          ],
+          ["fouls", "Fouls", foulBorderColor, (match: Match) => match.getFouls()],
+        ]
+    } 
+  })();
 
   return series.map(([id, label, color, getValue]) => ({
     id,
@@ -240,6 +252,23 @@ function createChartSeries(
   }));
 }
 
+function getScoreSeries(seriesType: SeriesType) {
+  switch (seriesType) {
+    case "pointsAndDriverRating":
+      return [
+        SCORE_SERIES.find(series => series.id === "total"),
+        SCORE_SERIES.find(series => series.id === "auto"),
+        SCORE_SERIES.find(series => series.id === "teleop"),
+        SCORE_SERIES.find(series => series.id === "climb"),
+        SCORE_SERIES.find(series => series.id === "driverRating"),
+      ]
+    case "fouls": 
+      return [
+        SCORE_SERIES.find(series => series.id === "fouls"),
+        SCORE_SERIES.find(series => series.id === "majorFouls"),
+      ]
+  }
+}
 function getPointAxisConfig(scoreValues: number[]) {
   const scoreMinimum = Math.min(...scoreValues);
   const scoreMaximum = Math.max(...scoreValues);
@@ -378,7 +407,8 @@ function CenterLineHighlight(props: LineHighlightElementProps) {
   );
 }
 
-export function MatchLineGraph({ team }: MatchLineGraphProps) {
+export function MatchLineGraph({ team, seriesType }: MatchLineGraphProps) {
+  const scoreSeries = useMemo(() => getScoreSeries(seriesType), [seriesType]);
   const [hiddenSeries, setHiddenSeries] = useState<Set<ScoreSeriesId>>(
     new Set(),
   );
@@ -414,7 +444,7 @@ export function MatchLineGraph({ team }: MatchLineGraphProps) {
     match.getTechFouls(),
   ]);
   const pointAxis = getPointAxisConfig(scoreValues);
-  const visibleAreaSeries = SCORE_SERIES.filter(
+  const visibleAreaSeries = getScoreSeries(seriesType).filter(
     (series) => series.id !== "driverRating" && !hiddenSeries.has(series.id),
   ).map((series) => series.id);
   const backgroundSeriesId = visibleAreaSeries.at(-1) ?? null;
@@ -455,7 +485,7 @@ export function MatchLineGraph({ team }: MatchLineGraphProps) {
     <div className="match-line-graph-container">
       <fieldset className="match-line-graph-legend">
         <legend className="visually-hidden">Score series</legend>
-        {SCORE_SERIES.map((series) => {
+        {scoreSeries.map((series) => {
           const hidden = hiddenSeries.has(series.id);
           return (
             <button
@@ -490,7 +520,7 @@ export function MatchLineGraph({ team }: MatchLineGraphProps) {
             hideLegend
             axisHighlight={{
               x:
-                hiddenSeries.size === SCORE_SERIES.length || isSingleMatch
+                hiddenSeries.size === scoreSeries.length || isSingleMatch
                   ? "none"
                   : "line",
               y: "none",
@@ -537,6 +567,7 @@ export function MatchLineGraph({ team }: MatchLineGraphProps) {
               matches,
               isSingleMatch,
               hiddenSeries,
+              seriesType
             ).filter((series) => !hiddenSeries.has(series.id))}
             slots={{
               area: GradientArea,
