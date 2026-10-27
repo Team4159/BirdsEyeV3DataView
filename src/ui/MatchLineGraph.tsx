@@ -188,36 +188,51 @@ function createChartSeries(
   isSingleMatch: boolean,
   hiddenSeries: Set<ScoreSeriesId>,
 ) {
+  const round = (value: number) => Math.round(value * 100) / 100;
   const series = [
-    ["majorFouls", "Major Fouls", techFoulBorderColor, (match: Match) => match.getTechFouls()],
+    [
+      "majorFouls",
+      "Major Fouls",
+      techFoulBorderColor,
+      (match: Match) => round(match.getTechFouls()),
+    ],
     ["fouls", "Fouls", foulBorderColor, (match: Match) => match.getFouls()],
     [
       "driverRating",
       "Driver Rating",
       driverRatingBorderColor,
-      (match: Match) => match.getDriverRating(),
+      (match: Match) => round(match.getDriverRating()),
     ],
-    ["climb", "Climb", autoClimbBorderColor, (match: Match) => match.getClimbPoints()],
+    [
+      "climb",
+      "Climb",
+      autoClimbBorderColor,
+      (match: Match) => round(match.getClimbPoints()),
+    ],
     [
       "teleop",
       "Teleop",
       teleopFuelBorderColor,
-      (match: Match) => match.getTeleopPoints(),
+      (match: Match) => round(match.getTeleopPoints()),
     ],
-    ["auto", "Auto", autoFuelBorderColor, (match: Match) => match.getAutoPoints()],
-    ["total", "Total", totalPointsBorderColor, (match: Match) => match.getPoints()],
+    [
+      "auto",
+      "Auto",
+      autoFuelBorderColor,
+      (match: Match) => round(match.getAutoPoints()),
+    ],
+    [
+      "total",
+      "Total",
+      totalPointsBorderColor,
+      (match: Match) => round(match.getPoints()),
+    ],
   ] as const;
 
   return series.map(([id, label, color, getValue]) => ({
     id,
     ...(id === "driverRating" ? { yAxisId: "driverRating" } : {}),
-    data: getSeriesData(
-      matches,
-      isSingleMatch,
-      hiddenSeries,
-      id,
-      getValue,
-    ),
+    data: getSeriesData(matches, isSingleMatch, hiddenSeries, id, getValue),
     label,
     color,
     ...(id !== "driverRating" ? { area: true } : {}),
@@ -262,7 +277,12 @@ function getPointAxisConfig(scoreValues: number[]) {
   };
 }
 
-function GradientArea({ d, ownerState, skipAnimation, ...pathProps }: GradientAreaProps) {
+function GradientArea({
+  d,
+  ownerState,
+  skipAnimation,
+  ...pathProps
+}: GradientAreaProps) {
   const drawingArea = useDrawingArea();
   const { bands, matchCount, backgroundSeriesId } =
     useContext(EventBandContext);
@@ -379,10 +399,7 @@ export function MatchLineGraph({ team }: MatchLineGraphProps) {
     return () => resizeObserver.disconnect();
   }, []);
 
-  const maxVisibleLabels = Math.max(
-    3,
-    Math.floor((chartWidth - 120) / 55),
-  );
+  const maxVisibleLabels = Math.max(3, Math.floor((chartWidth - 120) / 55));
   const labelInterval = Math.max(
     1,
     Math.ceil(matches.length / maxVisibleLabels),
