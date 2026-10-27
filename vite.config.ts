@@ -21,6 +21,10 @@ export default defineConfig({
               name: "firebase",
               test: /node_modules\/firebase/,
             },
+            {
+              name: "muix",
+              test: /node_modules\/@mui/,
+            },
           ],
         },
       },
