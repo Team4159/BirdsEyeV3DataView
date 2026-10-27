@@ -75,8 +75,11 @@ const teamSortComparators = {
   Data: createTeamSortComparator(
     (a, b) => b.getDataPoints() - a.getDataPoints(),
   ),
-  Team: createTeamSortComparator((a, b) =>
-    b.getTeamName().localeCompare(a.getTeamName()),
+  Team: createTeamSortComparator(
+    (a, b) =>
+      parseInt(b.getTeamName().substring(3), 10) -
+        parseInt(a.getTeamName().substring(3), 10) ||
+      b.getTeamName().localeCompare(a.getTeamName()),
   ),
 } as const satisfies Record<string, TeamSortComparator>;
 
@@ -160,19 +163,14 @@ export function EventsOverviewPage({
           className="events-overview-sort-button"
           onClick={() => handleSort(name)}
           style={{
-            backgroundClip: "padding-box",
-            borderTop: "2px solid",
-            borderBottom: "2px solid",
-            borderTopColor:
+            boxShadow:
               teamSortComparatorKey.current === name &&
               !teamSortComparatorInverted.current
-                ? "white"
-                : "transparent",
-            borderBottomColor:
-              teamSortComparatorKey.current === name &&
-              teamSortComparatorInverted.current
-                ? "white"
-                : "transparent",
+                ? "inset 0 2px 0 0 white"
+                : teamSortComparatorKey.current === name &&
+                    teamSortComparatorInverted.current
+                  ? "inset 0 -2px 0 0 white"
+                  : undefined,
           }}
         >
           {name}

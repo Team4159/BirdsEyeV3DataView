@@ -30,8 +30,10 @@ const MS_PER_PX = 0.8;
 const MAX_MOVE_MS = 800;
 // fraction of the remaining distance the drag overlay covers each frame
 const EASE = 0.3;
+// how long the shadow takes to come back when a chip is grabbed again while its shadow is still fading
+const SHADOW_RAMP_MS = 160;
 
-type Box = { left: number; top: number; width: number; height: number };
+type Box ={ left: number; top: number; width: number; height: number };
 
 // where a chip was painted (transforms included) just before a state change, and whether one of our slides was running
 type ChipSnapshot = { box: Box; moving: boolean };
@@ -126,6 +128,46 @@ function relativeTo(box: Box, origin: DOMRect): Box {
   };
 }
 
+// the properties that carry the overlay's shadow. Their values come from the stylesheet at run time, so whichever is used is faded.
+const SHADOW_PROPS = ["boxShadow", "filter"] as const;
+type ShadowValues = Partial<Record<(typeof SHADOW_PROPS)[number], string>>;
+
+// the shadow as it is painted right now, running animations included. Properties with no shadow are left out.
+function paintedShadow(element: HTMLElement): ShadowValues {
+  const style = getComputedStyle(element);
+  const values: ShadowValues = {};
+  for (const prop of SHADOW_PROPS) {
+    if (style[prop] !== "none") {
+      values[prop] = style[prop];
+    }
+  }
+  return values;
+}
+
+// animates the shadow between two painted values; "none" as the target fades it out completely
+function animateShadow(
+  element: HTMLElement,
+  from: ShadowValues,
+  to: ShadowValues | "none",
+  options: KeyframeAnimationOptions,
+): Animation | null {
+  const start: Keyframe = {};
+  const end: Keyframe = {};
+  for (const prop of SHADOW_PROPS) {
+    const a = from[prop];
+    const b = to === "none" ? undefined : to[prop];
+    if (a === undefined && b === undefined) {
+      continue;
+    }
+    start[prop] = a ?? "none";
+    end[prop] = b ?? "none";
+  }
+  if (Object.keys(start).length === 0) {
+    return null;
+  }
+  return element.animate([start, end], options);
+}
+
 export function AllianceBuilderPage({
   eventChoices,
   aggregateEvents,
@@ -171,6 +213,8 @@ export function AllianceBuilderPage({
   // the overlay's flight to its box after a drop, and the listeners that cut it short if the page moves under it
   const landingAnim = useRef<Animation | null>(null);
   const landingCleanup = useRef<(() => void) | null>(null);
+  // the overlay's shadow animation: the fade while it lands, or the ramp back up if it is grabbed again mid-fade
+  const shadowAnim = useRef<Animation | null>(null);
   // set by a drop and consumed by the next commit, which starts the overlay's flight
   const landing = useRef<Landing | null>(null);
   // how the next commit moves chips: reset and auto fill fade every chip, reorder flies them
@@ -221,6 +265,7 @@ export function AllianceBuilderPage({
     () => () => {
       stopDrag.current?.();
       landingAnim.current?.cancel();
+      shadowAnim.current?.cancel();
       landingCleanup.current?.();
     },
     [],
@@ -284,6 +329,8 @@ export function AllianceBuilderPage({
   // overlay can't flash at the release point before React removes it.
   function settleLanding() {
     landingAnim.current = null;
+    // the shadow fade ends with the flight and holds its last frame the same way; it goes when the overlay does
+    shadowAnim.current = null;
     landingCleanup.current?.();
     landingCleanup.current = null;
     setLandingTeam(null);
@@ -293,8 +340,10 @@ export function AllianceBuilderPage({
   // event, so React commits before the next paint and the cancelled overlay is never shown.
   function endLanding() {
     const animation = landingAnim.current;
+    const shadow = shadowAnim.current;
     settleLanding();
     animation?.cancel();
+    shadow?.cancel();
   }
 
   // flies the overlay from where it was released to the dropped chip's resting box. The overlay is position: fixed, so no card
@@ -323,8 +372,19 @@ export function AllianceBuilderPage({
         ]
       : [frame(from, 1), frame(end, 1)];
     const distance = Math.hypot(left - from.left, top - from.top);
+    const duration = Math.min(MAX_MOVE_MS, MOVE_MS + distance * MS_PER_PX);
+    // the shadow fades out over the same flight, so it is gone exactly when the real chip (which has none) takes over. It starts
+    // from what is painted right now, not from the stylesheet's value: a drop made while a shadow is still ramping up or
+    // fading continues from there instead of jumping to full strength first. Read before the old animation is cancelled.
+    const shadowFrom = paintedShadow(overlay);
+    shadowAnim.current?.cancel();
+    shadowAnim.current = animateShadow(overlay, shadowFrom, "none", {
+      duration,
+      easing: "ease-out",
+      fill: "forwards",
+    });
     const animation = overlay.animate(keyframes, {
-      duration: Math.min(MAX_MOVE_MS, MOVE_MS + distance * MS_PER_PX),
+      duration,
       easing: "cubic-bezier(0.2, 0, 0, 1)",
       // holds the last frame until React swaps the overlay for the real chip, so it never snaps back to the release point
       fill: "forwards",
@@ -596,10 +656,22 @@ export function AllianceBuilderPage({
       event.currentTarget === overlayRef.current
         ? (chipElement(team)?.getBoundingClientRect() ?? rect)
         : rect;
+    // the shadow of a drop that is still fading, read before the flight is cancelled below
+    const overlay = overlayRef.current;
+    const fadingShadow = overlay && shadowAnim.current ? paintedShadow(overlay) : null;
     // a drag whose pointerup was lost must not leak its listeners into this one
     stopDrag.current?.();
     // a chip still landing from the previous drop is shown at its box so the overlay can be reused
     endLanding();
+    // the reused overlay brings its shadow back from where the fade had got to, rather than snapping to full strength
+    if (overlay && fadingShadow) {
+      shadowAnim.current = animateShadow(
+        overlay,
+        fadingShadow,
+        paintedShadow(overlay),
+        { duration: SHADOW_RAMP_MS, easing: "ease-out" },
+      );
+    }
     // clear any text selection so the browser doesn't start a native drag of it
     window.getSelection()?.removeAllRanges();
     const pointerId = event.pointerId;
