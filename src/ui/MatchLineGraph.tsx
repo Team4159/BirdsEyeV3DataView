@@ -387,7 +387,7 @@ export function MatchLineGraph({ team }: MatchLineGraphProps) {
     1,
     Math.ceil(matches.length / maxVisibleLabels),
   );
-  const axisMargin = 44;
+  const axisMargin = 16;
   const scoreValues = matches.flatMap((match) => [
     match.getPoints(),
     match.getAutoPoints(),
