@@ -192,6 +192,12 @@ export function AllianceBuilderPage({
   // the team whose overlay is still flying to its box after a drop; its real chip stays hidden until it lands
   const [landingTeam, setLandingTeam] = useState<string | null>(null);
   const [dragTone, setDragTone] = useState<"yes" | "no">("yes");
+  // the key of the live overlay element. Grabbing another chip while a drop is still flying hands that element over to `flights`
+  // (it keeps flying on its own) and the new drag gets a fresh element under a new key.
+  const [overlayKey, setOverlayKey] = useState(0);
+  const [flights, setFlights] = useState<
+    { key: number; team: string; tone: "yes" | "no" }[]
+  >([]);
   const [overPool, setOverPool] = useState(false);
   // the slot a dragged team is hovering, so stats can preview a replacement before release
   const [hoverSlot, setHoverSlot] = useState<{
@@ -215,6 +221,10 @@ export function AllianceBuilderPage({
   const landingCleanup = useRef<(() => void) | null>(null);
   // the overlay's shadow animation: the fade while it lands, or the ramp back up if it is grabbed again mid-fade
   const shadowAnim = useRef<Animation | null>(null);
+  // flights handed over by detachLanding, by overlay key; each entry removes its overlay and shows the real chip
+  const detached = useRef(
+    new Map<number, { team: string; drop: () => void; dispose: () => void }>(),
+  );
   // set by a drop and consumed by the next commit, which starts the overlay's flight
   const landing = useRef<Landing | null>(null);
   // how the next commit moves chips: reset and auto fill fade every chip, reorder flies them
@@ -267,6 +277,9 @@ export function AllianceBuilderPage({
       landingAnim.current?.cancel();
       shadowAnim.current?.cancel();
       landingCleanup.current?.();
+      for (const entry of detached.current.values()) {
+        entry.dispose();
+      }
     },
     [],
   );
@@ -344,6 +357,37 @@ export function AllianceBuilderPage({
     settleLanding();
     animation?.cancel();
     shadow?.cancel();
+  }
+
+  // lets the flight in progress finish on its own element while the live overlay is freed for a new drag. The element stays mounted
+  // (same key, now rendered from `flights`), so its animations are never interrupted; its chip appears when it lands.
+  function detachLanding(team: string) {
+    const animation = landingAnim.current;
+    if (!animation) {
+      return false;
+    }
+    const key = overlayKey;
+    landingAnim.current = null;
+    shadowAnim.current = null;
+    landingCleanup.current?.();
+    landingCleanup.current = null;
+    const dispose = () => {
+      window.removeEventListener("scroll", drop, { capture: true });
+      window.removeEventListener("resize", drop);
+    };
+    function drop() {
+      dispose();
+      detached.current.delete(key);
+      setFlights((current) => current.filter((flight) => flight.key !== key));
+    }
+    window.addEventListener("scroll", drop, { capture: true, passive: true });
+    window.addEventListener("resize", drop);
+    animation.finished.then(drop, drop);
+    detached.current.set(key, { team, drop, dispose });
+    setFlights((current) => [...current, { key, team, tone: dragTone }]);
+    setOverlayKey(key + 1);
+    setLandingTeam(null);
+    return true;
   }
 
   // flies the overlay from where it was released to the dropped chip's resting box. The overlay is position: fixed, so no card
@@ -494,7 +538,14 @@ export function AllianceBuilderPage({
       const wrapped =
         Math.abs(rest.top - now.top) > 1 ||
         Math.abs(rest.left - now.left) > now.width * 1.5;
-      if (fadeAll || (wrapped && !swapping)) {
+      // a chip whose resting box is unchanged is only still travelling from an earlier change, so it keeps sliding. Fading is
+      // for chips this change actually relocates: a chip caught mid-slide by an unrelated fade-mode drop must not turn into a fade.
+      const relocated =
+        Math.abs(rest.left - now.left) > 1 ||
+        Math.abs(rest.top - now.top) > 1 ||
+        Math.abs(rest.width - now.width) > 1 ||
+        Math.abs(rest.height - now.height) > 1;
+      if ((fadeAll && relocated) || (wrapped && !swapping)) {
         element.animate([{ opacity: 0 }, { opacity: 1 }], {
           duration: MOVE_MS,
         });
@@ -519,6 +570,19 @@ export function AllianceBuilderPage({
     // no flight to wait for (reduced motion, or the chip is gone): show the real chip now
     if (landed && !landingStarted) {
       setLandingTeam(null);
+    }
+    // a detached flight is aiming at the box its chip had; if this change moved that chip, the flight is aiming at the wrong place
+    for (const entry of Array.from(detached.current.values())) {
+      const was = boxes.current.get(entry.team);
+      const now = next.get(entry.team);
+      if (
+        !now ||
+        !was ||
+        Math.abs(was.left - now.left) > 1 ||
+        Math.abs(was.top - now.top) > 1
+      ) {
+        entry.drop();
+      }
     }
     boxes.current = next;
   });
@@ -658,10 +722,13 @@ export function AllianceBuilderPage({
         : rect;
     // the shadow of a drop that is still fading, read before the flight is cancelled below
     const overlay = overlayRef.current;
-    const fadingShadow = overlay && shadowAnim.current ? paintedShadow(overlay) : null;
+    // a flight of a different chip carries on undisturbed on its own element; grabbing the flying chip itself reuses its overlay
+    const handedOver = !!landingTeam && landingTeam !== team && detachLanding(landingTeam);
+    const fadingShadow =
+      !handedOver && overlay && shadowAnim.current ? paintedShadow(overlay) : null;
     // a drag whose pointerup was lost must not leak its listeners into this one
     stopDrag.current?.();
-    // a chip still landing from the previous drop is shown at its box so the overlay can be reused
+    // the chip being grabbed from its own flight is shown at its box so the overlay can be reused
     endLanding();
     // the reused overlay brings its shadow back from where the fade had got to, rather than snapping to full strength
     if (overlay && fadingShadow) {
@@ -923,7 +990,12 @@ export function AllianceBuilderPage({
       data-team={team}
       draggable={false}
       className={`button event-button ${tone} alliance-chip`}
-      style={{ visibility: ghostTeam === team ? "hidden" : "visible" }}
+      style={{
+        visibility:
+          ghostTeam === team || flights.some((flight) => flight.team === team)
+            ? "hidden"
+            : "visible",
+      }}
       onPointerDown={(event) => startDrag(event, team)}
       onDragStart={(event) => event.preventDefault()}
       onTouchStart={trackTouch}
@@ -1057,27 +1129,46 @@ export function AllianceBuilderPage({
         {pool.map((team) => chip(team, "no"))}
       </fieldset>
 
-      {ghostTeam && (
-        <button
-          ref={overlayRef}
-          type="button"
-          tabIndex={-1}
-          aria-hidden="true"
-          draggable={false}
-          className={`button event-button ${dragTone} alliance-drag-overlay`}
-          // while the overlay carries a dropped chip to its box it is the chip, so it can be grabbed again mid-flight.
-          // During a drag it must ignore the pointer so the box underneath can be found.
-          style={{
-            touchAction: "none",
-            pointerEvents: dragTeam ? undefined : "auto",
-          }}
-          onPointerDown={(event) => startDrag(event, ghostTeam)}
-          onDragStart={(event) => event.preventDefault()}
-          onTouchStart={trackTouch}
-        >
-          <h4>{label(ghostTeam)}</h4>
-        </button>
-      )}
+      {/* one keyed list, so an overlay handed over to `flights` is the same DOM element and its animations keep running */}
+      {[
+        ...flights.map((flight) => (
+          <button
+            key={flight.key}
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            draggable={false}
+            className={`button event-button ${flight.tone} alliance-drag-overlay`}
+            style={{ touchAction: "none", pointerEvents: "none" }}
+          >
+            <h4>{label(flight.team)}</h4>
+          </button>
+        )),
+        ...(ghostTeam
+          ? [
+              <button
+                key={overlayKey}
+                ref={overlayRef}
+                type="button"
+                tabIndex={-1}
+                aria-hidden="true"
+                draggable={false}
+                className={`button event-button ${dragTone} alliance-drag-overlay`}
+                // while the overlay carries a dropped chip to its box it is the chip, so it can be grabbed again mid-flight.
+                // During a drag it must ignore the pointer so the box underneath can be found.
+                style={{
+                  touchAction: "none",
+                  pointerEvents: dragTeam ? undefined : "auto",
+                }}
+                onPointerDown={(event) => startDrag(event, ghostTeam)}
+                onDragStart={(event) => event.preventDefault()}
+                onTouchStart={trackTouch}
+              >
+                <h4>{label(ghostTeam)}</h4>
+              </button>,
+            ]
+          : []),
+      ]}
     </div>
   );
 }
