@@ -230,7 +230,7 @@ export function AllianceBuilderPage({
         teams.map((team) => [
           team.getTeamName(),
           {
-            total: team.getAvgPoints(),
+            total: team.getAvgPointsNoFouls(),
             auto: team.getAvgAutoPoints(),
             teleop: team.getAvgTeleopPoints(),
             climb: team.getAvgClimbPoints(),

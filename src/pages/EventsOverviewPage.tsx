@@ -33,7 +33,7 @@ function calculateDataRanges(
     avgTechFouls: createDataRange(),
   };
   teams.forEach((team) => {
-    extendDataRange(dataRanges.avgScore, team.getAvgPoints());
+    extendDataRange(dataRanges.avgScore, team.getAvgPointsNoFouls());
     extendDataRange(dataRanges.autoAvgScore, team.getAvgAutoPoints());
     extendDataRange(dataRanges.teleopAvgScore, team.getAvgTeleopPoints());
     extendDataRange(dataRanges.climbAvgScore, team.getAvgClimbPoints());
@@ -49,12 +49,12 @@ type TeamSortComparator = (a: FrcTeam, b: FrcTeam) => number;
 const createTeamSortComparator = (comparator: TeamSortComparator) =>
   ((a, b) =>
     comparator(a, b) ||
-    b.getAvgPoints() - a.getAvgPoints() ||
+    b.getAvgPointsNoFouls() - a.getAvgPointsNoFouls() ||
     b.getTeamName().localeCompare(a.getTeamName())) as TeamSortComparator;
 const teamSortComparators = {
-  Rank: createTeamSortComparator((a, b) => b.getAvgPoints() - a.getAvgPoints()),
+  Rank: createTeamSortComparator((a, b) => b.getAvgPointsNoFouls() - a.getAvgPointsNoFouls()),
   Total: createTeamSortComparator(
-    (a, b) => b.getAvgPoints() - a.getAvgPoints(),
+    (a, b) => b.getAvgPointsNoFouls() - a.getAvgPointsNoFouls(),
   ),
   Auto: createTeamSortComparator(
     (a, b) => b.getAvgAutoPoints() - a.getAvgAutoPoints(),
@@ -235,14 +235,14 @@ export function EventsOverviewPage({
             <div
               style={{
                 color: getStatColor(
-                  team.getAvgPoints(),
+                  team.getAvgPointsNoFouls(),
                   dataRanges.avgScore,
                   false,
                 ),
               }}
               className="events-overview-item"
             >
-              {team.getAvgPoints().toFixed(2)}
+              {team.getAvgPointsNoFouls().toFixed(2)}
             </div>
             <div
               style={{

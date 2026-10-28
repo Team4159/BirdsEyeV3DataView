@@ -29,6 +29,17 @@ export class FrcTeam {
     return points / this.matchesData.length;
   }
 
+  getAvgPointsNoFouls() {
+    if (this.hasNoMatchData()) {
+      return 0;
+    }
+    let points = 0;
+    this.matchesData.forEach((matchData) => {
+      points += matchData.getPointsNoFouls();
+    });
+    return points / this.matchesData.length;
+  }
+
   getAvgAutoPoints() {
     if (this.hasNoMatchData()) {
       return 0;

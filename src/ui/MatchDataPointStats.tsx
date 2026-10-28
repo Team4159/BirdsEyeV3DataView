@@ -12,7 +12,7 @@
 //     <div className="matchStats">
 //       <div className="statRow">
 //         <span className="statLabel">Points</span>
-//         <span className="statValue">{matchDataPoint.getPoints()}</span>
+//         <span className="statValue">{matchDataPoint.getPointsNoFouls()}</span>
 //       </div>
 //
 //       <div className="statRow">

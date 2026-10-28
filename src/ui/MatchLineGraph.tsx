@@ -238,7 +238,7 @@ function createChartSeries(
             "total" as ScoreSeriesId,
             "Total",
             totalPointsBorderColor,
-            (match: Match) => round(match.getPoints()),
+            (match: Match) => round(match.getPointsNoFouls()),
           ],
         ] as const satisfies ReadonlyArray<
           [ScoreSeriesId, string, string, (match: Match) => number]
@@ -519,7 +519,7 @@ export function MatchLineGraph({ team, seriesType }: MatchLineGraphProps) {
     switch (seriesType) {
       case "points":
         return matches.flatMap((match) => [
-          match.getPoints(),
+          match.getPointsNoFouls(),
           match.getAutoPoints(),
           match.getTeleopPoints(),
           match.getClimbPoints(),
