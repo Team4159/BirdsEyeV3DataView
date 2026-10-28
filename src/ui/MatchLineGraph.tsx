@@ -8,8 +8,8 @@ import type { ComponentPropsWithoutRef } from "react";
 import {
   createContext,
   useContext,
-  useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -504,7 +504,7 @@ export function MatchLineGraph({ team, seriesType }: MatchLineGraphProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const matches = team.getMatches();
   const isSingleMatch = matches.length === 1;
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = chartContainerRef.current;
     if (!element) {
       return;
