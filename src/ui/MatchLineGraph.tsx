@@ -275,7 +275,7 @@ function createChartSeries(
     data: getSeriesData(matches, isSingleMatch, hiddenSeries, id, getValue),
     label,
     color,
-    ...(id !== "driverRating" ? { area: true } : {}),
+    area: true,
     showMark: false,
   }));
 }
@@ -388,52 +388,56 @@ function GradientArea({
             drawingArea={drawingArea}
           />
         ))}
-      <defs>
-        {gradientHalves.map((half) => (
-          <clipPath key={half.id} id={`${gradientId}-${half.id}-clip`}>
-            <rect
-              x={drawingArea.left}
-              y={half.clipY}
-              width={drawingArea.width}
-              height={half.clipHeight}
-            />
-          </clipPath>
-        ))}
-        {gradientHalves.map((half) => (
-          <linearGradient
-            key={half.id}
-            id={`${gradientId}-${half.id}`}
-            gradientUnits="userSpaceOnUse"
-            x1="0"
-            y1={half.gradientStartY}
-            x2="0"
-            y2={half.gradientEndY}
-          >
-            <stop
-              offset="0%"
-              stopColor={color}
-              stopOpacity={half.startOpacity}
-            />
-            <stop
-              offset="100%"
-              stopColor={color}
-              stopOpacity={half.endOpacity}
-            />
-          </linearGradient>
-        ))}
-      </defs>
-      {gradientHalves.map((half) => (
-        <g key={half.id} clipPath={`url(#${gradientId}-${half.id}-clip)`}>
-          <path
-            {...pathProps}
-            d={d}
-            data-series-id={seriesId}
-            fill={`url(#${gradientId}-${half.id})`}
-            stroke="none"
-            style={{ zIndex: seriesLayer[seriesId] }}
-          />
-        </g>
-      ))}
+      {seriesId !== "driverRating" && (
+        <>
+          <defs>
+            {gradientHalves.map((half) => (
+              <clipPath key={half.id} id={`${gradientId}-${half.id}-clip`}>
+                <rect
+                  x={drawingArea.left}
+                  y={half.clipY}
+                  width={drawingArea.width}
+                  height={half.clipHeight}
+                />
+              </clipPath>
+            ))}
+            {gradientHalves.map((half) => (
+              <linearGradient
+                key={half.id}
+                id={`${gradientId}-${half.id}`}
+                gradientUnits="userSpaceOnUse"
+                x1="0"
+                y1={half.gradientStartY}
+                x2="0"
+                y2={half.gradientEndY}
+              >
+                <stop
+                  offset="0%"
+                  stopColor={color}
+                  stopOpacity={half.startOpacity}
+                />
+                <stop
+                  offset="100%"
+                  stopColor={color}
+                  stopOpacity={half.endOpacity}
+                />
+              </linearGradient>
+            ))}
+          </defs>
+          {gradientHalves.map((half) => (
+            <g key={half.id} clipPath={`url(#${gradientId}-${half.id}-clip)`}>
+              <path
+                {...pathProps}
+                d={d}
+                data-series-id={seriesId}
+                fill={`url(#${gradientId}-${half.id})`}
+                stroke="none"
+                style={{ zIndex: seriesLayer[seriesId] }}
+              />
+            </g>
+          ))}
+        </>
+      )}
     </>
   );
 }
@@ -545,6 +549,12 @@ export function MatchLineGraph({ team, seriesType }: MatchLineGraphProps) {
       (series) => series.id !== "driverRating" && !hiddenSeries.has(series.id),
     )
     .map((series) => series.id);
+  if (
+    visibleAreaSeries.length === 0 &&
+    !hiddenSeries.has("driverRating")
+  ) {
+    visibleAreaSeries.push("driverRating");
+  }
   const backgroundSeriesId = visibleAreaSeries.at(-1) ?? null;
   const toggleSeries = (seriesId: ScoreSeriesId) => {
     setHiddenSeries((current) => {
