@@ -235,6 +235,7 @@ function App() {
             );
             await signInWithCredential(auth, credential);
             setCurrentPage(Page.Settings);
+            setEventChoices(await fetchEvents(firestore));
           }}
         />
       )}
