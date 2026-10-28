@@ -37,6 +37,7 @@ export class FrcTeam {
     this.matchesData.forEach((matchData) => {
       points += matchData.getPointsNoFouls();
     });
+    console.log(points / this.matchesData.length);
     return points / this.matchesData.length;
   }
 

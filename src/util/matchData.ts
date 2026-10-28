@@ -92,7 +92,7 @@ export class MatchData {
   }
 
   public getAutoPoints(): number {
-    return this.getAutoFuels() * PointValue.AutoFuelPoints + this.getAutoClimbPoints();
+    return this.getAutoFuels() * PointValue.AutoFuelPoints;
   }
 
   public getTeleopPoints(): number {
