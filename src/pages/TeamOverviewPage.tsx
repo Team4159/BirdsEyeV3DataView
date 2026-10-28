@@ -14,7 +14,7 @@ export function TeamOverviewPage({ selectedTeam }: TeamOverviewPageProps) {
       </h1>
       {selectedTeam ? (
         <>
-          <MatchLineGraph team={selectedTeam} seriesType={"pointsAndDriverRating"} />
+          <MatchLineGraph team={selectedTeam} seriesType={"points"} />
           <MatchLineGraph team={selectedTeam} seriesType={"fouls"} />
         </>
       ) : (

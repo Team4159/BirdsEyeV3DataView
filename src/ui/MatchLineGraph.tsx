@@ -1,4 +1,4 @@
-import { useDrawingArea } from "@mui/x-charts/hooks";
+import { useDrawingArea, useYScale } from "@mui/x-charts/hooks";
 import {
   LineChart,
   LineHighlightElement,
@@ -9,6 +9,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -79,6 +80,12 @@ const EVENT_BAND_COLORS = [
 ];
 const DRIVER_RATING_AXIS_MAXIMUM = 5.5;
 
+type ScoreSeriesItem = {
+  readonly id: ScoreSeriesId;
+  readonly label: string;
+  readonly color: string;
+};
+
 const SCORE_SERIES = [
   { id: "total", label: "Total", color: totalPointsBorderColor },
   { id: "auto", label: "Auto", color: autoFuelBorderColor },
@@ -91,11 +98,7 @@ const SCORE_SERIES = [
   },
   { id: "fouls", label: "Fouls", color: foulBorderColor },
   { id: "majorFouls", label: "Major Fouls", color: techFoulBorderColor },
-] as const satisfies ReadonlyArray<{
-  id: ScoreSeriesId;
-  label: string;
-  color: string;
-}>;
+] as const satisfies ReadonlyArray<ScoreSeriesItem>;
 
 type GradientAreaProps = ComponentPropsWithoutRef<"path"> & {
   d: string;
@@ -103,6 +106,16 @@ type GradientAreaProps = ComponentPropsWithoutRef<"path"> & {
     seriesId: string | number;
   };
   skipAnimation?: boolean;
+};
+
+type AreaGradientHalf = {
+  id: "positive" | "negative";
+  clipY: number;
+  clipHeight: number;
+  gradientStartY: number;
+  gradientEndY: number;
+  startOpacity: number;
+  endOpacity: number;
 };
 
 function NoDataOverlay(
@@ -170,7 +183,7 @@ function getChartData<T>(
 
 type Match = ReturnType<FrcTeam["getMatches"]>[number];
 
-type SeriesType = "pointsAndDriverRating" | "fouls";
+type SeriesType = "points" | "fouls";
 
 function getSeriesData<T>(
   matches: Match[],
@@ -195,50 +208,65 @@ function createChartSeries(
   const round = (value: number) => Math.round(value * 100) / 100;
   const series = (() => {
     switch (seriesType) {
-      case "pointsAndDriverRating": 
+      case "points":
         return [
           [
-            "driverRating",
+            "driverRating" as ScoreSeriesId,
             "Driver Rating",
             driverRatingBorderColor,
             (match: Match) => round(match.getDriverRating()),
           ],
           [
-            "climb",
+            "climb" as ScoreSeriesId,
             "Climb",
             autoClimbBorderColor,
             (match: Match) => round(match.getClimbPoints()),
           ],
           [
-            "teleop",
+            "teleop" as ScoreSeriesId,
             "Teleop",
             teleopFuelBorderColor,
             (match: Match) => round(match.getTeleopPoints()),
           ],
           [
-            "auto",
+            "auto" as ScoreSeriesId,
             "Auto",
             autoFuelBorderColor,
             (match: Match) => round(match.getAutoPoints()),
           ],
           [
-            "total",
+            "total" as ScoreSeriesId,
             "Total",
             totalPointsBorderColor,
             (match: Match) => round(match.getPoints()),
           ],
-        ]
-      case "fouls": 
+        ] as const satisfies ReadonlyArray<
+          [ScoreSeriesId, string, string, (match: Match) => number]
+        >;
+      case "fouls":
         return [
           [
-            "majorFouls",
+            "driverRating" as ScoreSeriesId,
+            "Driver Rating",
+            driverRatingBorderColor,
+            (match: Match) => round(match.getDriverRating()),
+          ],
+          [
+            "majorFouls" as ScoreSeriesId,
             "Major Fouls",
             techFoulBorderColor,
             (match: Match) => round(match.getTechFouls()),
           ],
-          ["fouls", "Fouls", foulBorderColor, (match: Match) => match.getFouls()],
-        ]
-    } 
+          [
+            "fouls" as ScoreSeriesId,
+            "Fouls",
+            foulBorderColor,
+            (match: Match) => match.getFouls(),
+          ],
+        ] as const satisfies ReadonlyArray<
+          [ScoreSeriesId, string, string, (match: Match) => number]
+        >;
+    }
   })();
 
   return series.map(([id, label, color, getValue]) => ({
@@ -252,21 +280,22 @@ function createChartSeries(
   }));
 }
 
-function getScoreSeries(seriesType: SeriesType) {
+function getScoreSeries(seriesType: SeriesType): ScoreSeriesItem[] {
   switch (seriesType) {
-    case "pointsAndDriverRating":
+    case "points":
       return [
-        SCORE_SERIES.find(series => series.id === "total"),
-        SCORE_SERIES.find(series => series.id === "auto"),
-        SCORE_SERIES.find(series => series.id === "teleop"),
-        SCORE_SERIES.find(series => series.id === "climb"),
-        SCORE_SERIES.find(series => series.id === "driverRating"),
-      ]
-    case "fouls": 
+        SCORE_SERIES.find((series) => series.id === "total"),
+        SCORE_SERIES.find((series) => series.id === "auto"),
+        SCORE_SERIES.find((series) => series.id === "teleop"),
+        SCORE_SERIES.find((series) => series.id === "climb"),
+        SCORE_SERIES.find((series) => series.id === "driverRating"),
+      ] as ScoreSeriesItem[];
+    case "fouls":
       return [
-        SCORE_SERIES.find(series => series.id === "fouls"),
-        SCORE_SERIES.find(series => series.id === "majorFouls"),
-      ]
+        SCORE_SERIES.find((series) => series.id === "fouls"),
+        SCORE_SERIES.find((series) => series.id === "majorFouls"),
+        SCORE_SERIES.find((series) => series.id === "driverRating"),
+      ] as ScoreSeriesItem[];
   }
 }
 function getPointAxisConfig(scoreValues: number[]) {
@@ -313,12 +342,39 @@ function GradientArea({
   ...pathProps
 }: GradientAreaProps) {
   const drawingArea = useDrawingArea();
+  const yScale = useYScale();
+  const gradientInstanceId = useId();
   const { bands, matchCount, backgroundSeriesId } =
     useContext(EventBandContext);
   const seriesId = String(ownerState.seriesId) as ScoreSeriesId;
-  const gradientId = `match-score-gradient-${seriesId}`;
+  const gradientId = `match-score-gradient-${seriesId}-${gradientInstanceId}`;
   const color =
     seriesId === "driverRating" ? "var(--text)" : areaColors[seriesId];
+  const chartBottom = drawingArea.top + drawingArea.height;
+  const baselineY = Math.min(
+    chartBottom,
+    Math.max(drawingArea.top, yScale?.(0) ?? chartBottom),
+  );
+  const gradientHalves: AreaGradientHalf[] = [
+    {
+      id: "positive",
+      clipY: drawingArea.top,
+      clipHeight: baselineY - drawingArea.top,
+      gradientStartY: drawingArea.top,
+      gradientEndY: baselineY,
+      startOpacity: 0.55,
+      endOpacity: 0,
+    },
+    {
+      id: "negative",
+      clipY: baselineY,
+      clipHeight: chartBottom - baselineY,
+      gradientStartY: baselineY,
+      gradientEndY: chartBottom,
+      startOpacity: 0,
+      endOpacity: 0.55,
+    },
+  ];
 
   return (
     <>
@@ -333,19 +389,43 @@ function GradientArea({
           />
         ))}
       <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.55" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
+        {gradientHalves.map((half) => (
+          <clipPath key={half.id} id={`${gradientId}-${half.id}-clip`}>
+            <rect
+              x={drawingArea.left}
+              y={half.clipY}
+              width={drawingArea.width}
+              height={half.clipHeight}
+            />
+          </clipPath>
+        ))}
+        {gradientHalves.map((half) => (
+          <linearGradient
+            key={half.id}
+            id={`${gradientId}-${half.id}`}
+            gradientUnits="userSpaceOnUse"
+            x1="0"
+            y1={half.gradientStartY}
+            x2="0"
+            y2={half.gradientEndY}
+          >
+            <stop offset="0%" stopColor={color} stopOpacity={half.startOpacity} />
+            <stop offset="100%" stopColor={color} stopOpacity={half.endOpacity} />
+          </linearGradient>
+        ))}
       </defs>
-      <path
-        {...pathProps}
-        d={d}
-        data-series-id={seriesId}
-        fill={`url(#${gradientId})`}
-        stroke="none"
-        style={{ zIndex: seriesLayer[seriesId] }}
-      />
+      {gradientHalves.map((half) => (
+        <g key={half.id} clipPath={`url(#${gradientId}-${half.id}-clip)`}>
+          <path
+            {...pathProps}
+            d={d}
+            data-series-id={seriesId}
+            fill={`url(#${gradientId}-${half.id})`}
+            stroke="none"
+            style={{ zIndex: seriesLayer[seriesId] }}
+          />
+        </g>
+      ))}
     </>
   );
 }
@@ -435,18 +515,28 @@ export function MatchLineGraph({ team, seriesType }: MatchLineGraphProps) {
     Math.ceil(matches.length / maxVisibleLabels),
   );
   const axisMargin = 16;
-  const scoreValues = matches.flatMap((match) => [
-    match.getPoints(),
-    match.getAutoPoints(),
-    match.getTeleopPoints(),
-    match.getClimbPoints(),
-    match.getFouls(),
-    match.getTechFouls(),
-  ]);
+  const scoreValues = (() => {
+    switch (seriesType) {
+      case "points":
+        return matches.flatMap((match) => [
+          match.getPoints(),
+          match.getAutoPoints(),
+          match.getTeleopPoints(),
+          match.getClimbPoints(),
+        ]);
+      case "fouls":
+        return matches.flatMap((match) => [
+          match.getFouls(),
+          match.getTechFouls(),
+        ]);
+    }
+  })();
   const pointAxis = getPointAxisConfig(scoreValues);
-  const visibleAreaSeries = getScoreSeries(seriesType).filter(
-    (series) => series.id !== "driverRating" && !hiddenSeries.has(series.id),
-  ).map((series) => series.id);
+  const visibleAreaSeries = getScoreSeries(seriesType)
+    .filter(
+      (series) => series.id !== "driverRating" && !hiddenSeries.has(series.id),
+    )
+    .map((series) => series.id);
   const backgroundSeriesId = visibleAreaSeries.at(-1) ?? null;
   const toggleSeries = (seriesId: ScoreSeriesId) => {
     setHiddenSeries((current) => {
@@ -545,29 +635,50 @@ export function MatchLineGraph({ team, seriesType }: MatchLineGraphProps) {
                 tickLabelMinGap: 24,
               },
             ]}
-            yAxis={[
-              {
-                label: "Points",
-                min: pointAxis.min,
-                max: pointAxis.max,
-                tickInterval: pointAxis.ticks,
-                domainLimit: "strict",
-              },
-              {
-                id: "driverRating",
-                label: "Driver Rating",
-                min: 0,
-                max: DRIVER_RATING_AXIS_MAXIMUM,
-                tickInterval: [0, 1, 2, 3, 4, 5],
-                domainLimit: "strict",
-                position: "right",
-              },
-            ]}
+            yAxis={
+              seriesType === "points"
+                ? [
+                    {
+                      label: "Points",
+                      min: pointAxis.min,
+                      max: pointAxis.max,
+                      tickInterval: pointAxis.ticks,
+                      domainLimit: "strict",
+                    },
+                    {
+                      id: "driverRating",
+                      label: "Driver Rating",
+                      min: 0,
+                      max: DRIVER_RATING_AXIS_MAXIMUM,
+                      tickInterval: [0, 1, 2, 3, 4, 5],
+                      domainLimit: "strict",
+                      position: "right",
+                    },
+                  ]
+                : [
+                    {
+                      label: "Fouls",
+                      min: pointAxis.min,
+                      max: pointAxis.max,
+                      tickInterval: pointAxis.ticks,
+                      domainLimit: "strict",
+                    },
+                    {
+                      id: "driverRating",
+                      label: "Driver Rating",
+                      min: 0,
+                      max: DRIVER_RATING_AXIS_MAXIMUM,
+                      tickInterval: [0, 1, 2, 3, 4, 5],
+                      domainLimit: "strict",
+                      position: "right",
+                    },
+                  ]
+            }
             series={createChartSeries(
               matches,
               isSingleMatch,
               hiddenSeries,
-              seriesType
+              seriesType,
             ).filter((series) => !hiddenSeries.has(series.id))}
             slots={{
               area: GradientArea,

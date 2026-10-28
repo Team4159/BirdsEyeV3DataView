@@ -31,11 +31,11 @@ import { LoginPage } from "./pages/LoginPage";
 import { Page } from "./pages/Page";
 import { ScouterLeaderboardPage } from "./pages/ScouterLeaderboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TeamOverviewPage } from "./pages/TeamOverviewPage";
 import { applyDarkMode } from "./ui/theme";
 import { fetchEvents, fetchTeamsFromEvents } from "./util/databaseFetcher";
 import type { FrcTeam } from "./util/FrcTeam";
 import type { MatchData } from "./util/matchData";
-import { TeamOverviewPage } from "./pages/TeamOverviewPage";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
