@@ -62,11 +62,11 @@ const areaColors: Record<Exclude<ScoreSeriesId, "driverRating">, string> = {
 };
 
 const seriesLayer: Record<ScoreSeriesId, number> = {
-  total: 7,
-  auto: 6,
-  teleop: 5,
-  climb: 4,
-  driverRating: 3,
+  driverRating: 7,
+  total: 6,
+  auto: 5,
+  teleop: 4,
+  climb: 3,
   fouls: 2,
   majorFouls: 1,
 };
@@ -211,12 +211,6 @@ function createChartSeries(
       case "points":
         return [
           [
-            "driverRating" as ScoreSeriesId,
-            "Driver Rating",
-            driverRatingBorderColor,
-            (match: Match) => round(match.getDriverRating()),
-          ],
-          [
             "climb" as ScoreSeriesId,
             "Climb",
             autoClimbBorderColor,
@@ -240,17 +234,17 @@ function createChartSeries(
             totalPointsBorderColor,
             (match: Match) => round(match.getPointsNoFouls()),
           ],
-        ] as const satisfies ReadonlyArray<
-          [ScoreSeriesId, string, string, (match: Match) => number]
-        >;
-      case "fouls":
-        return [
           [
             "driverRating" as ScoreSeriesId,
             "Driver Rating",
             driverRatingBorderColor,
             (match: Match) => round(match.getDriverRating()),
           ],
+        ] as const satisfies ReadonlyArray<
+          [ScoreSeriesId, string, string, (match: Match) => number]
+        >;
+      case "fouls":
+        return [
           [
             "majorFouls" as ScoreSeriesId,
             "Major Fouls",
@@ -262,6 +256,12 @@ function createChartSeries(
             "Fouls",
             foulBorderColor,
             (match: Match) => match.getFouls(),
+          ],
+          [
+            "driverRating" as ScoreSeriesId,
+            "Driver Rating",
+            driverRatingBorderColor,
+            (match: Match) => round(match.getDriverRating()),
           ],
         ] as const satisfies ReadonlyArray<
           [ScoreSeriesId, string, string, (match: Match) => number]
