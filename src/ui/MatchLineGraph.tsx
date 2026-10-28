@@ -409,8 +409,16 @@ function GradientArea({
             x2="0"
             y2={half.gradientEndY}
           >
-            <stop offset="0%" stopColor={color} stopOpacity={half.startOpacity} />
-            <stop offset="100%" stopColor={color} stopOpacity={half.endOpacity} />
+            <stop
+              offset="0%"
+              stopColor={color}
+              stopOpacity={half.startOpacity}
+            />
+            <stop
+              offset="100%"
+              stopColor={color}
+              stopOpacity={half.endOpacity}
+            />
           </linearGradient>
         ))}
       </defs>
