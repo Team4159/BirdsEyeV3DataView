@@ -3,6 +3,7 @@ import {
   ChartNoAxesCombined,
   ClipboardPen,
   LogOut,
+  StepBack,
   Trophy,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -201,7 +202,7 @@ function App() {
     const unsubscribe = onSnapshot(
       collection(firestore, "events"),
       async () => {
-        setEventChoices((await fetchEvents(firestore)));
+        setEventChoices(await fetchEvents(firestore));
       },
     );
     return unsubscribe;
@@ -255,7 +256,11 @@ function App() {
               setCurrentPage(Page.EventsOverview);
             }}
           >
-            <ChartNoAxesCombined size={20} />
+            {currentPage === Page.TeamOverview ? (
+              <StepBack size={20} />
+            ) : (
+              <ChartNoAxesCombined size={20} />
+            )}
           </button>
 
           <button
