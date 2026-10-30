@@ -118,8 +118,8 @@ export class FrcTeam {
     return techFouls / this.matchesData.length;
   }
 
-  addMatch(matchData: MatchData) {
-    this.matchesData.push(matchData);
+  addMatches(...matchDatas: MatchData[]) {
+    this.matchesData.push(...matchDatas);
     this.matchesData.sort((a, b) =>
       compareMatchKeys(a.getMatchKey(), b.getMatchKey()),
     );

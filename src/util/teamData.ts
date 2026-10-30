@@ -12,8 +12,6 @@ export function getDisplayTeamData(team: FrcTeam, aggregateEvents: string[], dis
     return [];
   }
   const teamData = new FrcTeam(team.getTeamName());
-  matches.forEach((match) => {
-    teamData.addMatch(match);
-  });
+  teamData.addMatches(...matches.values());
   return teamData;
 }

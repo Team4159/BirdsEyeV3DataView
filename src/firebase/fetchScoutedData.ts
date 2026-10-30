@@ -10,9 +10,7 @@ import {
 } from "firebase/firestore";
 import { FrcTeam } from "../util/FrcTeam";
 import { MatchData } from "../util/matchData";
-import {
-  matchDataPointFromFirestore,
-} from "../util/matchDataPoint";
+import { matchDataPointFromFirestore } from "../util/matchDataPoint";
 
 export async function fetchScoutedEvents(
   firestore: Firestore,
@@ -73,12 +71,10 @@ export async function fetchScoutedEventsTeamDatas(
   }
 
   const teamsMap = new Map<string, FrcTeam>();
-  teamDatas.forEach((matchDataMap, team) => {
+  teamDatas.forEach((matchDatas, team) => {
     const frcTeam = new FrcTeam(team);
     teamsMap.set(team, frcTeam);
-    matchDataMap.forEach((matchData) => {
-      frcTeam.addMatch(matchData);
-    });
+    frcTeam.addMatches(...matchDatas.values());
   });
 
   return teamsMap;
