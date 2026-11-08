@@ -75,7 +75,10 @@ export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
   );
   const [total, setTotal] = useState<number>(0);
   const emailCountEntries = useMemo(
-    () => [...emailCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+    () =>
+      [...emailCounts.entries()].sort(
+        (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+      ),
     [emailCounts],
   );
   const rankByEmail = useMemo(
