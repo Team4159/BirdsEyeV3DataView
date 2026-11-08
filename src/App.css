@@ -461,7 +461,7 @@ fieldset.grid-container.pool-drop {
 
 .alliance-chip {
     cursor: grab;
-    touch-action: none;
+    touch-action: auto;
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;

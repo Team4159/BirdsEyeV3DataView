@@ -220,8 +220,6 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
   const overlayRef = useRef<HTMLButtonElement>(null);
   const dragRef = useRef<Drag | null>(null);
   const stopDrag = useRef<(() => void) | null>(null);
-  // the touch that grabbed the chip; other fingers keep their normal scrolling
-  const dragTouch = useRef<number | null>(null);
   // resting chip boxes (no transforms) from the last animated commit, relative to the card
   const boxes = useRef(new Map<string, Box>());
   // painted chip boxes taken right before a state change; its presence is what makes the next commit animate
@@ -738,15 +736,6 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     ).find((element) => element.dataset.team === team);
   }
 
-  // only the finger that started the drag is tracked; a second finger must not take over its id
-  function trackTouch(event: {
-    changedTouches: ArrayLike<{ identifier: number }>;
-  }) {
-    if (dragRef.current && dragTouch.current === null) {
-      dragTouch.current = event.changedTouches[0]?.identifier ?? null;
-    }
-  }
-
   function startDrag(
     event: ReactPointerEvent<HTMLButtonElement>,
     team: string,
@@ -869,15 +858,6 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       );
     };
 
-    const onTouchMove = (move: TouchEvent) => {
-      for (const touch of Array.from(move.changedTouches)) {
-        if (touch.identifier === dragTouch.current) {
-          move.preventDefault();
-          return;
-        }
-      }
-    };
-
     // stops the browser from starting a text selection or a native drag while the chip is held
     const blockDefault = (blocked: Event) => blocked.preventDefault();
 
@@ -885,7 +865,6 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onPointerCancel);
-      window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("blur", onAbort);
       window.removeEventListener("contextmenu", blockDefault);
       window.removeEventListener("dragstart", blockDefault);
@@ -894,7 +873,6 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       if (card?.hasPointerCapture(pointerId)) {
         card.releasePointerCapture(pointerId);
       }
-      dragTouch.current = null;
       stopDrag.current = null;
     };
 
@@ -958,7 +936,6 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onPointerCancel);
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("blur", onAbort);
     window.addEventListener("contextmenu", blockDefault);
     window.addEventListener("dragstart", blockDefault);
@@ -1043,7 +1020,6 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       }}
       onPointerDown={(event) => startDrag(event, team)}
       onDragStart={(event) => event.preventDefault()}
-      onTouchStart={trackTouch}
     >
       <h4>{label(team)}</h4>
     </button>
@@ -1208,12 +1184,11 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
                     // while the overlay carries a dropped chip to its box it is the chip, so it can be grabbed again mid-flight.
                     // During a drag it must ignore the pointer so the box underneath can be found.
                     style={{
-                      touchAction: "none",
+                      touchAction: "auto",
                       pointerEvents: dragTeam ? undefined : "auto",
                     }}
                     onPointerDown={(event) => startDrag(event, ghostTeam)}
                     onDragStart={(event) => event.preventDefault()}
-                    onTouchStart={trackTouch}
                   >
                     <h4>{label(ghostTeam)}</h4>
                   </button>,
