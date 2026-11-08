@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { FetchingDataText } from "../ui/FetchingDataText";
 import {
   createDataRange,
@@ -667,9 +668,9 @@ function useAllianceBuilderInteractions({
       // a chip that wrapped to another row would sweep diagonally across the card, so fade it in instead.
       // This compares resting layouts: `from` can be a mid-slide position, which says nothing about wrapping.
       const rest = boxes.current.get(team) ?? from;
-      const wrapped =
-        Math.abs(rest.top - now.top) > 1 ||
-        Math.abs(rest.left - now.left) > now.width * 1.5;
+      const changedRows = Math.abs(rest.top - now.top) > 1;
+      const changedColumns = Math.abs(rest.left - now.left) > now.width * 1.5;
+      const wrapped = changedRows && changedColumns;
       // a chip whose resting box is unchanged is only still travelling from an earlier change, so it keeps sliding. Fading is
       // for chips this change actually relocates: a chip caught mid-slide by an unrelated fade-mode drop must not turn into a fade.
       const relocated =
@@ -1531,7 +1532,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
           </fieldset>
 
           {/* one keyed list, so an overlay handed over to `flights` is the same DOM element and its animations keep running */}
-          {[
+          {createPortal([
             ...flights.map((flight) => (
               <button
                 key={flight.key}
@@ -1569,7 +1570,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
                   </button>,
                 ]
               : []),
-          ]}
+          ], document.body)}
         </>
       ) : (
         <FetchingDataText />
