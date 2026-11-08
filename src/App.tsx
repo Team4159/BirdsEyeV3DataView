@@ -92,10 +92,10 @@ function App() {
   const [selectedTeam, setSelectedTeam] = useState<FrcTeam | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
   const teamsUpdateIndex = useRef<number>(0);
-  const teamsUpdated = useRef<boolean>(false);
+  const [teamsUpdated, setTeamsUpdated] = useState<boolean>(false);
 
   const shouldUpdateTeams = useMemo(() => {
-    if (teamsUpdated.current) {
+    if (teamsUpdated) {
       return false;
     }
     if (teamsUpdateIndex.current === 0) {
@@ -108,13 +108,16 @@ function App() {
       return false;
     }
     return true;
-  }, [currentPage]);
+  }, [currentPage, teamsUpdated]);
 
   const updateTeams = useCallback(
     async (firestore: Firestore) => {
       const scopeTeamUpdateIndex = teamsUpdateIndex.current + 1;
       teamsUpdateIndex.current = scopeTeamUpdateIndex;
+
+      console.log("FETCH");
       const newTeams = await fetchTeamsFromEvents(firestore, aggregateEvents);
+
       if (scopeTeamUpdateIndex !== teamsUpdateIndex.current) {
         return;
       }
@@ -125,33 +128,27 @@ function App() {
         const updatedTeam = newTeams.find(
           (t) => t.getTeamName() === selectedTeam.getTeamName(),
         );
-
         if (updatedTeam) {
           setSelectedTeam(updatedTeam);
         }
-      }
 
-      if (selectedMatch && selectedTeam) {
-        const updatedTeam = newTeams.find(
-          (t) => t.getTeamName() === selectedTeam.getTeamName(),
-        );
-
-        const updatedMatch = updatedTeam
-          ?.getMatches()
-          .find((m) => m.getName() === selectedMatch.getName());
-
-        if (updatedMatch) {
-          setSelectedMatch(updatedMatch);
+        if (selectedMatch) {
+          const updatedMatch = updatedTeam
+            ?.getMatches()
+            .find((m) => m.getName() === selectedMatch.getName());
+          if (updatedMatch) {
+            setSelectedMatch(updatedMatch);
+          }
         }
       }
 
-      teamsUpdated.current = true;
+      setTeamsUpdated(true);
     },
     [aggregateEvents, selectedMatch, selectedTeam],
   );
 
   function toggleAggregateEvent(event: string) {
-    teamsUpdated.current = false;
+    setTeamsUpdated(false);
     if (aggregateEvents.includes(event)) {
       // removing an aggregate event also turns off its display toggle
       setDisplayEvents((prev) => prev.filter((e) => e !== event));
@@ -162,7 +159,7 @@ function App() {
   }
 
   function toggleDisplayEvent(event: string) {
-    teamsUpdated.current = false;
+    setTeamsUpdated(false);
     setDisplayEvents((prev) => {
       if (prev.includes(event)) {
         return prev.filter((e) => e !== event);
@@ -174,7 +171,7 @@ function App() {
 
   // when everything is selected, clicking the button clears the selection instead
   function toggleAllAggregateEvents() {
-    teamsUpdated.current = false;
+    setTeamsUpdated(false);
     if (aggregateEvents.length === eventChoices.length) {
       setAggregateEvents([]);
       setDisplayEvents([]);
@@ -184,7 +181,7 @@ function App() {
   }
 
   function toggleAllUndisplayedAggregateEvents() {
-    teamsUpdated.current = false;
+    setTeamsUpdated(false);
     if (aggregateEvents.length === displayEvents.length) {
       setAggregateEvents([...eventChoices]);
     } else {
@@ -193,7 +190,7 @@ function App() {
   }
 
   function toggleAllDisplayEvents() {
-    teamsUpdated.current = false;
+    setTeamsUpdated(false);
     if (displayEvents.length === aggregateEvents.length) {
       setDisplayEvents([]);
     } else {
