@@ -488,7 +488,31 @@ function useAllianceBuilderInteractions({
       return false;
     }
     const { from } = landed;
+    if (
+      ![
+        from.left,
+        from.top,
+        from.width,
+        from.height,
+      ].every(Number.isFinite) ||
+      from.width <= 0 ||
+      from.height <= 0
+    ) {
+      return false;
+    }
     const targetRect = target.getBoundingClientRect();
+    if (
+      ![
+        targetRect.left,
+        targetRect.top,
+        targetRect.width,
+        targetRect.height,
+      ].every(Number.isFinite) ||
+      targetRect.width <= 0 ||
+      targetRect.height <= 0
+    ) {
+      return false;
+    }
     const initialTarget: Box = {
       left: targetRect.left,
       top: targetRect.top,
@@ -876,6 +900,22 @@ function useAllianceBuilderInteractions({
     }
     // measured before anything below can cancel a flight: a chip grabbed from the landing overlay is picked up exactly where it is painted
     const rect = event.currentTarget.getBoundingClientRect();
+    if (
+      ![
+        rect.left,
+        rect.top,
+        rect.width,
+        rect.height,
+        event.clientX,
+        event.clientY,
+      ].every(Number.isFinite) ||
+      rect.width <= 0 ||
+      rect.height <= 0
+    ) {
+      return;
+    }
+    const fx = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const fy = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
     // the size the chip settles at. For the overlay that is its hidden real chip, not whatever size the flight has reached.
     const restRect =
       event.currentTarget === overlayRef.current
@@ -927,8 +967,8 @@ function useAllianceBuilderInteractions({
       ty: event.clientY,
       tw: rect.width,
       th: rect.height,
-      fx: (event.clientX - rect.left) / rect.width,
-      fy: (event.clientY - rect.top) / rect.height,
+      fx,
+      fy,
       baseW: restRect.width,
       baseH: restRect.height,
       tone: fromSlot ? "yes" : "no",
