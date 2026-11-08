@@ -489,12 +489,7 @@ function useAllianceBuilderInteractions({
     }
     const { from } = landed;
     if (
-      ![
-        from.left,
-        from.top,
-        from.width,
-        from.height,
-      ].every(Number.isFinite) ||
+      ![from.left, from.top, from.width, from.height].every(Number.isFinite) ||
       from.width <= 0 ||
       from.height <= 0
     ) {
@@ -914,8 +909,14 @@ function useAllianceBuilderInteractions({
     ) {
       return;
     }
-    const fx = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const fy = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+    const fx = Math.max(
+      0,
+      Math.min(1, (event.clientX - rect.left) / rect.width),
+    );
+    const fy = Math.max(
+      0,
+      Math.min(1, (event.clientY - rect.top) / rect.height),
+    );
     // the size the chip settles at. For the overlay that is its hidden real chip, not whatever size the flight has reached.
     const restRect =
       event.currentTarget === overlayRef.current
