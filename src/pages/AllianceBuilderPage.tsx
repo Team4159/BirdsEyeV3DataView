@@ -124,8 +124,10 @@ function statColor(value: number, range: DataRange) {
 // slots are neighbors when they touch, including diagonally, like adjacent cells in minesweeper
 function isNeighborSlot(a: number, b: number) {
   const columns = PICK_COLUMNS.length;
-  return Math.abs(Math.floor(a / columns) - Math.floor(b / columns)) <= 1 &&
-    Math.abs((a % columns) - (b % columns)) <= 1;
+  return (
+    Math.abs(Math.floor(a / columns) - Math.floor(b / columns)) <= 1 &&
+    Math.abs((a % columns) - (b % columns)) <= 1
+  );
 }
 
 function relativeTo(box: Box, origin: DOMRect): Box {
@@ -144,8 +146,7 @@ function landingEasing(progress: number) {
   let parameter = progress;
   for (let i = 0; i < 12; i++) {
     const inverse = 1 - parameter;
-    const x =
-      3 * inverse ** 2 * parameter * 0.2 + parameter ** 3;
+    const x = 3 * inverse ** 2 * parameter * 0.2 + parameter ** 3;
     if (x < progress) start = parameter;
     else end = parameter;
     parameter = (start + end) / 2;
@@ -322,9 +323,7 @@ function useAllianceBuilderInteractions({
       motionMode.current = "fly";
       swapCommit.current = false;
       refreshBoxes.current = true;
-      setBoard((current) =>
-        order ? { ...current, order } : { ...current },
-      );
+      setBoard((current) => (order ? { ...current, order } : { ...current }));
     },
     [setBoard],
   );
@@ -551,10 +550,13 @@ function useAllianceBuilderInteractions({
       const liveRect = liveTarget.getBoundingClientRect();
       const scrollX = liveRect.left - initialTarget.left;
       const scrollY = liveRect.top - initialTarget.top;
-      const left = from.left + (initialTarget.left - from.left) * travelProgress + scrollX;
-      const top = from.top + (initialTarget.top - from.top) * travelProgress + scrollY;
+      const left =
+        from.left + (initialTarget.left - from.left) * travelProgress + scrollX;
+      const top =
+        from.top + (initialTarget.top - from.top) * travelProgress + scrollY;
       const width = from.width + (liveRect.width - from.width) * travelProgress;
-      const height = from.height + (liveRect.height - from.height) * travelProgress;
+      const height =
+        from.height + (liveRect.height - from.height) * travelProgress;
       let scale = 1;
       if (landed.pulse && eased < 0.5) {
         scale = 1 - 0.1 * (eased / 0.5);
@@ -604,10 +606,13 @@ function useAllianceBuilderInteractions({
 
     if (refreshBoxes.current && !snapshot && !landed) {
       boxes.current = new Map(
-        Array.from(card.querySelectorAll<HTMLElement>("[data-team]"), (element) => [
-          element.dataset.team ?? "",
-          relativeTo(element.getBoundingClientRect(), origin),
-        ]),
+        Array.from(
+          card.querySelectorAll<HTMLElement>("[data-team]"),
+          (element) => [
+            element.dataset.team ?? "",
+            relativeTo(element.getBoundingClientRect(), origin),
+          ],
+        ),
       );
       refreshBoxes.current = false;
       return;
@@ -761,7 +766,10 @@ function useAllianceBuilderInteractions({
       const rows: { indices: number[]; centerY: number }[] = [];
       rects.forEach((rect, index) => {
         const row = rows[rows.length - 1];
-        if (!row || Math.abs(rect.top - rects[row.indices[0]].top) > rect.height / 2) {
+        if (
+          !row ||
+          Math.abs(rect.top - rects[row.indices[0]].top) > rect.height / 2
+        ) {
           rows.push({ indices: [index], centerY: rect.top + rect.height / 2 });
         } else {
           row.indices.push(index);
@@ -787,10 +795,12 @@ function useAllianceBuilderInteractions({
       ) {
         return lastIndex;
       }
-      gap = firstIndex + row.indices.filter((index) => {
-        const rect = rects[index];
-        return x > rect.left + rect.width / 2;
-      }).length;
+      gap =
+        firstIndex +
+        row.indices.filter((index) => {
+          const rect = rects[index];
+          return x > rect.left + rect.width / 2;
+        }).length;
     }
 
     return Math.max(0, gap - (held !== -1 && held < gap ? 1 : 0));
@@ -945,7 +955,10 @@ function useAllianceBuilderInteractions({
           cardRef.current?.querySelectorAll<HTMLElement>(
             ".alliance-grid [data-slot]",
           ) ?? [],
-        ).map((element) => ({ element, rect: element.getBoundingClientRect() }));
+        ).map((element) => ({
+          element,
+          rect: element.getBoundingClientRect(),
+        }));
         if (slots.length > 0) {
           const left = Math.min(...slots.map(({ rect }) => rect.left));
           const right = Math.max(...slots.map(({ rect }) => rect.right));
@@ -953,10 +966,8 @@ function useAllianceBuilderInteractions({
           const bottom = Math.max(...slots.map(({ rect }) => rect.bottom));
           if (x >= left && x <= right && y >= top && y <= bottom) {
             slot = slots.reduce((nearest, candidate) => {
-              const nearestX =
-                nearest.rect.left + nearest.rect.width / 2 - x;
-              const nearestY =
-                nearest.rect.top + nearest.rect.height / 2 - y;
+              const nearestX = nearest.rect.left + nearest.rect.width / 2 - x;
+              const nearestY = nearest.rect.top + nearest.rect.height / 2 - y;
               const candidateX =
                 candidate.rect.left + candidate.rect.width / 2 - x;
               const candidateY =
@@ -1335,17 +1346,11 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     updatePoolOrder(
       previous.length === 0 && aggregateEvents.length > 0
         ? [...names].sort(
-          (a, b) => (rankByName.get(a) ?? 0) - (rankByName.get(b) ?? 0),
+            (a, b) => (rankByName.get(a) ?? 0) - (rankByName.get(b) ?? 0),
           )
         : undefined,
     );
-  }, [
-    aggregateEvents,
-    isTeamsDataUpdated,
-    names,
-    rankByName,
-    updatePoolOrder,
-  ]);
+  }, [aggregateEvents, isTeamsDataUpdated, names, rankByName, updatePoolOrder]);
   const label = (name: string) =>
     `${name.substring(3)} (#${rankByName.get(name)})`;
   const slottedTeams = new Set(board.slots);
@@ -1447,11 +1452,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
           <button type="button" onClick={autoFill} disabled={pool.length === 0}>
             Auto Fill
           </button>
-          <button
-            type="button"
-            disabled={pool.length <= 1}
-            onClick={reorder}
-          >
+          <button type="button" disabled={pool.length <= 1} onClick={reorder}>
             Reorder
           </button>
           <button
@@ -1544,45 +1545,48 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
           </fieldset>
 
           {/* one keyed list, so an overlay handed over to `flights` is the same DOM element and its animations keep running */}
-          {createPortal([
-            ...flights.map((flight) => (
-              <button
-                key={flight.key}
-                type="button"
-                tabIndex={-1}
-                aria-hidden="true"
-                draggable={false}
-                className={`button event-button ${flight.tone} alliance-drag-overlay`}
-                style={{ touchAction: "none", pointerEvents: "none" }}
-              >
-                <h4>{label(flight.team)}</h4>
-              </button>
-            )),
-            ...(ghostTeam
-              ? [
-                  <button
-                    key={overlayKey}
-                    ref={overlayRef}
-                    type="button"
-                    tabIndex={-1}
-                    draggable={false}
-                    className={`button event-button ${dragTone} alliance-drag-overlay`}
-                    // while the overlay carries a dropped chip to its box it is the chip, so it can be grabbed again mid-flight.
-                    // During a drag it must ignore the pointer so the box underneath can be found.
-                    style={{
-                      touchAction: "auto",
-                      pointerEvents: dragTeam ? undefined : "auto",
-                    }}
-                    onPointerDown={(event) =>
-                      handlePointerDown(event, ghostTeam)
-                    }
-                    onDragStart={(event) => event.preventDefault()}
-                  >
-                    <h4>{label(ghostTeam)}</h4>
-                  </button>,
-                ]
-              : []),
-          ], document.body)}
+          {createPortal(
+            [
+              ...flights.map((flight) => (
+                <button
+                  key={flight.key}
+                  type="button"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  draggable={false}
+                  className={`button event-button ${flight.tone} alliance-drag-overlay`}
+                  style={{ touchAction: "none", pointerEvents: "none" }}
+                >
+                  <h4>{label(flight.team)}</h4>
+                </button>
+              )),
+              ...(ghostTeam
+                ? [
+                    <button
+                      key={overlayKey}
+                      ref={overlayRef}
+                      type="button"
+                      tabIndex={-1}
+                      draggable={false}
+                      className={`button event-button ${dragTone} alliance-drag-overlay`}
+                      // while the overlay carries a dropped chip to its box it is the chip, so it can be grabbed again mid-flight.
+                      // During a drag it must ignore the pointer so the box underneath can be found.
+                      style={{
+                        touchAction: "auto",
+                        pointerEvents: dragTeam ? undefined : "auto",
+                      }}
+                      onPointerDown={(event) =>
+                        handlePointerDown(event, ghostTeam)
+                      }
+                      onDragStart={(event) => event.preventDefault()}
+                    >
+                      <h4>{label(ghostTeam)}</h4>
+                    </button>,
+                  ]
+                : []),
+            ],
+            document.body,
+          )}
         </>
       ) : (
         <FetchingDataText />
