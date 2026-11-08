@@ -1,10 +1,10 @@
 import {
-  collectionGroup,
   onSnapshot,
-  type QuerySnapshot,
+  type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import type { Firestore } from "firebase/firestore/lite";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { getScoutedEventDatasetsQuery } from "../firebase/fetchScoutedData";
 import { FetchingDataText } from "../ui/FetchingDataText";
 import { eventsLabel } from "../util/eventsLabel";
 import { matchDataPointFromFirestore } from "../util/matchDataPoint";
@@ -20,7 +20,7 @@ type LeaderboardPageProps = {
 };
 
 function getLeaderboardCounts(
-  snapshot: QuerySnapshot,
+  docs: QueryDocumentSnapshot[],
   aggregateEvents: string[],
   displayEvents: string[],
 ) {
@@ -29,7 +29,7 @@ function getLeaderboardCounts(
   const emailCounts = new Map<string, number>();
   const emailsToDisplay = new Set<string>();
 
-  for (const doc of snapshot.docs) {
+  for (const doc of docs) {
     const event = doc.ref.path.split("/")[1];
     if (!event || !aggregateEventSet.has(event)) {
       continue;
@@ -100,42 +100,66 @@ export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
     displayEvents,
     isActive,
   });
-  const latestSnapshot = useRef<QuerySnapshot | null>(null);
+  const latestEventDocs = useRef(
+    new Map<string, QueryDocumentSnapshot[]>(),
+  );
 
   useEffect(() => {
     latestFilters.current = { aggregateEvents, displayEvents, isActive };
-    if (!isActive || !latestSnapshot.current) {
+    if (!isActive || emailDataAggregateEvents !== aggregateEvents) {
       return;
     }
 
     const emailCounts = getLeaderboardCounts(
-      latestSnapshot.current,
+      [...latestEventDocs.current.values()].flat(),
       aggregateEvents,
       displayEvents,
     );
     setEmailCounts(emailCounts);
     setEmailDataAggregateEvents(aggregateEvents);
-  }, [aggregateEvents, displayEvents, isActive]);
+  }, [aggregateEvents, displayEvents, emailDataAggregateEvents, isActive]);
 
-  useEffect(
-    () =>
-      onSnapshot(collectionGroup(firestore, "datasets"), (snapshot) => {
-        latestSnapshot.current = snapshot;
-        const filters = latestFilters.current;
-        if (!filters.isActive) {
-          return;
-        }
+  useEffect(() => {
+    latestEventDocs.current = new Map();
+    setEmailDataAggregateEvents(null);
 
-        const emailCounts = getLeaderboardCounts(
-          snapshot,
+    const pendingInitialSnapshots = new Set(aggregateEvents);
+    const publishCounts = () => {
+      const filters = latestFilters.current;
+      if (!filters.isActive) {
+        return;
+      }
+
+      setEmailCounts(
+        getLeaderboardCounts(
+          [...latestEventDocs.current.values()].flat(),
           filters.aggregateEvents,
           filters.displayEvents,
-        );
-        setEmailCounts(emailCounts);
-        setEmailDataAggregateEvents(filters.aggregateEvents);
+        ),
+      );
+      setEmailDataAggregateEvents(filters.aggregateEvents);
+    };
+
+    if (aggregateEvents.length === 0) {
+      publishCounts();
+      return;
+    }
+
+    const unsubscribe = aggregateEvents.map((event) =>
+      onSnapshot(getScoutedEventDatasetsQuery(firestore, event), (snapshot) => {
+        latestEventDocs.current.set(event, snapshot.docs);
+        pendingInitialSnapshots.delete(event);
+        if (pendingInitialSnapshots.size === 0) {
+          publishCounts();
+        }
       }),
-    [firestore],
-  );
+    );
+    return () => {
+      unsubscribe.forEach((stop) => {
+        stop();
+      });
+    };
+  }, [aggregateEvents, firestore]);
 
   return displayEvents.length === 0 ? (
     <div className="card">

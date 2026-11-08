@@ -42,6 +42,17 @@ export async function fetchScoutedEventsMatchDatas(
   return matchDatas;
 }
 
+export function getScoutedEventDatasetsQuery(
+  firestore: Firestore,
+  event: string,
+) {
+  return query(
+    collectionGroup(firestore, "datasets"),
+    where(documentId(), ">", `events/${event}`),
+    where(documentId(), "<", `events/${event}\uf8ff`),
+  );
+}
+
 export async function fetchScoutedEventsTeamDatas(
   firestore: Firestore,
   events: string[],
@@ -123,11 +134,5 @@ export async function fetchScoutedMatchData(
 }
 
 async function getEventDocPromises(firestore: Firestore, event: string) {
-  return getDocs(
-    query(
-      collectionGroup(firestore, "datasets"),
-      where(documentId(), ">", `events/${event}`),
-      where(documentId(), "<", `events/${event}\uf8ff`),
-    ),
-  );
+  return getDocs(getScoutedEventDatasetsQuery(firestore, event));
 }

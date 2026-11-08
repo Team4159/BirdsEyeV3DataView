@@ -21,12 +21,12 @@ import {
 } from "firebase/auth";
 import {
   collection,
-  collectionGroup,
   type Firestore,
   getFirestore,
   onSnapshot,
 } from "firebase/firestore";
 import { logOut } from "./firebase/auth";
+import { getScoutedEventDatasetsQuery } from "./firebase/fetchScoutedData";
 import { AllianceBuilderPage } from "./pages/AllianceBuilderPage";
 import { EventsOverviewPage } from "./pages/EventsOverviewPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -236,14 +236,26 @@ function App() {
     if (!shouldUpdateTeams) {
       return;
     }
-    const unsubscribe = onSnapshot(
-      collectionGroup(firestore, "datasets"),
-      async () => {
-        await updateTeams(firestore);
-      },
+    let updateTimer: number | undefined;
+    const scheduleUpdate = () => {
+      window.clearTimeout(updateTimer);
+      updateTimer = window.setTimeout(() => {
+        void updateTeams(firestore);
+      }, 40);
+    };
+    const unsubscribe = aggregateEvents.map((event) =>
+      onSnapshot(getScoutedEventDatasetsQuery(firestore, event), scheduleUpdate),
     );
-    return unsubscribe;
-  }, [updateTeams, shouldUpdateTeams]);
+    if (aggregateEvents.length === 0) {
+      scheduleUpdate();
+    }
+    return () => {
+      window.clearTimeout(updateTimer);
+      unsubscribe.forEach((stop) => {
+        stop();
+      });
+    };
+  }, [aggregateEvents, updateTeams, shouldUpdateTeams]);
 
   useEffect(() => {
     applyDarkMode(darkMode);
