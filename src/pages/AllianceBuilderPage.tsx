@@ -78,6 +78,11 @@ type Drag = {
   tone: "yes" | "no";
 };
 
+type DragStartEvent = Pick<
+  ReactPointerEvent<HTMLButtonElement>,
+  "button" | "isPrimary" | "pointerId" | "clientX" | "clientY" | "currentTarget"
+>;
+
 function emptyBoard(): Board {
   return {
     slots: Array(SLOT_COUNT).fill(null),
@@ -220,6 +225,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
   const overlayRef = useRef<HTMLButtonElement>(null);
   const dragRef = useRef<Drag | null>(null);
   const stopDrag = useRef<(() => void) | null>(null);
+  const cancelPendingTouchDrag = useRef<(() => void) | null>(null);
   // resting chip boxes (no transforms) from the last animated commit, relative to the card
   const boxes = useRef(new Map<string, Box>());
   // painted chip boxes taken right before a state change; its presence is what makes the next commit animate
@@ -284,6 +290,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
 
   useEffect(
     () => () => {
+      cancelPendingTouchDrag.current?.();
       stopDrag.current?.();
       landingAnim.current?.cancel();
       shadowAnim.current?.cancel();
@@ -300,6 +307,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       return;
     }
 
+    cancelPendingTouchDrag.current?.();
     if (dragRef.current) {
       stopDrag.current?.();
       dragRef.current = null;
@@ -737,7 +745,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
   }
 
   function startDrag(
-    event: ReactPointerEvent<HTMLButtonElement>,
+    event: DragStartEvent,
     team: string,
   ) {
     // a second finger or a non-primary button never starts (or hijacks) a drag
@@ -865,6 +873,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onPointerCancel);
+      window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("blur", onAbort);
       window.removeEventListener("contextmenu", blockDefault);
       window.removeEventListener("dragstart", blockDefault);
@@ -931,16 +940,77 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
         finish(null);
       }
     };
+    const onTouchMove = (move: TouchEvent) => move.preventDefault();
     const onAbort = () => finish(null);
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onPointerCancel);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("blur", onAbort);
     window.addEventListener("contextmenu", blockDefault);
     window.addEventListener("dragstart", blockDefault);
     window.addEventListener("selectstart", blockDefault);
     stopDrag.current = stop;
+  }
+
+  function handlePointerDown(
+    event: ReactPointerEvent<HTMLButtonElement>,
+    team: string,
+  ) {
+    if (event.pointerType !== "touch") {
+      startDrag(event, team);
+      return;
+    }
+    if (event.button !== 0 || !event.isPrimary) {
+      return;
+    }
+
+    const button = event.currentTarget;
+    const { pointerId, clientX, clientY } = event;
+    let timeout = 0;
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onEnd);
+      window.removeEventListener("pointercancel", onEnd);
+      if (cancelPendingTouchDrag.current === cleanup) {
+        cancelPendingTouchDrag.current = null;
+      }
+    };
+    const onMove = (move: PointerEvent) => {
+      if (
+        move.pointerId === pointerId &&
+        Math.hypot(move.clientX - clientX, move.clientY - clientY) > 10
+      ) {
+        cleanup();
+      }
+    };
+    const onEnd = (end: PointerEvent) => {
+      if (end.pointerId === pointerId) {
+        cleanup();
+      }
+    };
+
+    cancelPendingTouchDrag.current?.();
+    cancelPendingTouchDrag.current = cleanup;
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onEnd);
+    window.addEventListener("pointercancel", onEnd);
+    timeout = window.setTimeout(() => {
+      cleanup();
+      startDrag(
+        {
+          button: 0,
+          isPrimary: true,
+          pointerId,
+          clientX,
+          clientY,
+          currentTarget: button,
+        },
+        team,
+      );
+    }, 250);
   }
 
   function allianceStats(alliance: number, slots: (string | null)[]) {
@@ -1018,7 +1088,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
             ? "hidden"
             : "visible",
       }}
-      onPointerDown={(event) => startDrag(event, team)}
+      onPointerDown={(event) => handlePointerDown(event, team)}
       onDragStart={(event) => event.preventDefault()}
     >
       <h4>{label(team)}</h4>
@@ -1187,7 +1257,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
                       touchAction: "auto",
                       pointerEvents: dragTeam ? undefined : "auto",
                     }}
-                    onPointerDown={(event) => startDrag(event, ghostTeam)}
+                    onPointerDown={(event) => handlePointerDown(event, ghostTeam)}
                     onDragStart={(event) => event.preventDefault()}
                   >
                     <h4>{label(ghostTeam)}</h4>
