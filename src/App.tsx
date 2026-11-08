@@ -244,7 +244,10 @@ function App() {
       }, 40);
     };
     const unsubscribe = aggregateEvents.map((event) =>
-      onSnapshot(getScoutedEventDatasetsQuery(firestore, event), scheduleUpdate),
+      onSnapshot(
+        getScoutedEventDatasetsQuery(firestore, event),
+        scheduleUpdate,
+      ),
     );
     if (aggregateEvents.length === 0) {
       scheduleUpdate();
