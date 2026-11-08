@@ -1,7 +1,10 @@
 import {
+  type Dispatch,
   Fragment,
   memo,
   type PointerEvent as ReactPointerEvent,
+  type SetStateAction,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -27,6 +30,7 @@ const ALLIANCE_IDS = Array.from(
   (_, i) => `alliance-${i + 1}`,
 );
 const SLOT_COUNT = ALLIANCE_COUNT * PICK_COLUMNS.length;
+const STAT_KEYS = ["total", "auto", "teleop", "climb"] as const;
 const MOVE_MS = 450;
 // extra time per pixel traveled, capped so long moves don't drag
 const MS_PER_PX = 0.8;
@@ -43,6 +47,7 @@ type ChipSnapshot = { box: Box; moving: boolean };
 
 // a dropped chip: the overlay's painted box in viewport coordinates, from which the overlay flies to the chip's new box
 type Landing = { team: string; from: Box; pulse: boolean };
+type LandingFlight = { cancel: () => void; finished: Promise<void> };
 
 type TeamAverages = {
   total: number;
@@ -97,12 +102,11 @@ function emptyBoard(): Board {
 }
 
 function fullOrder(order: string[], names: string[]) {
-  const nameSet = new Set(names);
+  const availableNames = new Set(names);
   const orderedNames = new Set(order);
-  return [
-    ...order.filter((name) => nameSet.has(name)),
-    ...names.filter((name) => !orderedNames.has(name)),
-  ];
+  return order
+    .filter((name) => availableNames.has(name))
+    .concat(names.filter((name) => !orderedNames.has(name)));
 }
 
 // values that display as 0.00 are white and kept out of the gradient range
@@ -110,22 +114,17 @@ const isZero = (value: number) => Math.abs(value) < 0.005;
 
 // a single non-zero value has no spread to scale against, so it reads as the best (green)
 function statColor(value: number, range: DataRange) {
-  if (isZero(value)) {
-    return "white";
-  }
-  if (range.min === range.max) {
-    return "rgb(0, 255, 0)";
-  }
-  return getStatColor(value, range, false);
+  if (isZero(value)) return "white";
+  return range.min === range.max
+    ? "rgb(0, 255, 0)"
+    : getStatColor(value, range, false);
 }
 
 // slots are neighbors when they touch, including diagonally, like adjacent cells in minesweeper
 function isNeighborSlot(a: number, b: number) {
   const columns = PICK_COLUMNS.length;
-  return (
-    Math.abs(Math.floor(a / columns) - Math.floor(b / columns)) <= 1 &&
-    Math.abs((a % columns) - (b % columns)) <= 1
-  );
+  return Math.abs(Math.floor(a / columns) - Math.floor(b / columns)) <= 1 &&
+    Math.abs((a % columns) - (b % columns)) <= 1;
 }
 
 function relativeTo(box: Box, origin: DOMRect): Box {
@@ -135,6 +134,22 @@ function relativeTo(box: Box, origin: DOMRect): Box {
     width: box.width,
     height: box.height,
   };
+}
+
+function landingEasing(progress: number) {
+  // Match the historical cubic-bezier(0.2, 0, 0, 1) landing animation.
+  let start = 0;
+  let end = 1;
+  let parameter = progress;
+  for (let i = 0; i < 12; i++) {
+    const inverse = 1 - parameter;
+    const x =
+      3 * inverse ** 2 * parameter * 0.2 + parameter ** 3;
+    if (x < progress) start = parameter;
+    else end = parameter;
+    parameter = (start + end) / 2;
+  }
+  return 3 * (1 - parameter) * parameter ** 2 + parameter ** 3;
 }
 
 // the properties that carry the overlay's shadow. Their values come from the stylesheet at run time, so whichever is used is faded.
@@ -228,7 +243,6 @@ function scrollAtEdges(card: HTMLElement | null, x: number, y: number) {
   }
   return scrolled;
 }
-
 type AllianceBuilderPageProps = {
   eventChoices: string[];
   aggregateEvents: string[];
@@ -238,31 +252,23 @@ type AllianceBuilderPageProps = {
   isTeamsDataUpdated: boolean;
 };
 
-export const AllianceBuilderPage = memo(function AllianceBuilderPage({
-  eventChoices,
-  aggregateEvents,
-  displayEvents,
-  teams: allTeams,
+type AllianceBuilderInteractionsProps = {
+  board: Board;
+  setBoard: Dispatch<SetStateAction<Board>>;
+  names: string[];
+  rankByName: ReadonlyMap<string, number>;
+  teamNames: Set<string>;
+  isActive: boolean;
+};
+
+function useAllianceBuilderInteractions({
+  board,
+  setBoard,
+  names,
+  rankByName,
+  teamNames,
   isActive,
-  isTeamsDataUpdated,
-}: AllianceBuilderPageProps) {
-  const headerMessage = useMemo(
-    () => eventsLabel(eventChoices, aggregateEvents, displayEvents),
-    [eventChoices, aggregateEvents, displayEvents],
-  );
-
-  // only teams with matches in the displayed events, with stats limited to those matches
-  const teams = useMemo<FrcTeam[]>(() => {
-    return allTeams.flatMap((team) => {
-      return getDisplayTeamData(team, aggregateEvents, displayEvents);
-    });
-  }, [allTeams, displayEvents, aggregateEvents]);
-  const teamNames = useMemo<Set<string>>(
-    () => new Set(teams.flatMap((teams) => teams.getTeamName())),
-    [teams],
-  );
-
-  const [board, setBoard] = useState<Board>(emptyBoard);
+}: AllianceBuilderInteractionsProps) {
   const [dragTeam, setDragTeam] = useState<string | null>(null);
   // the team whose overlay is still flying to its box after a drop; its real chip stays hidden until it lands
   const [landingTeam, setLandingTeam] = useState<string | null>(null);
@@ -288,10 +294,11 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
   const boxes = useRef(new Map<string, Box>());
   // painted chip boxes taken right before a state change; its presence is what makes the next commit animate
   const pendingMotion = useRef<Map<string, ChipSnapshot> | null>(null);
+  const refreshBoxes = useRef(false);
   // the slides this component started on chips, so CSS transitions and fades are never mistaken for them
   const ownMotions = useRef(new WeakSet<Animation>());
   // the overlay's flight to its box after a drop, and the listeners that cut it short if the page moves under it
-  const landingAnim = useRef<Animation | null>(null);
+  const landingAnim = useRef<LandingFlight | null>(null);
   const landingCleanup = useRef<(() => void) | null>(null);
   // the overlay's shadow animation: the fade while it lands, or the ramp back up if it is grabbed again mid-fade
   const shadowAnim = useRef<Animation | null>(null);
@@ -306,45 +313,19 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
   // set when a drop swaps two slotted teams in neighboring slots, so both fly even if they change rows
   const swapCommit = useRef(false);
 
-  const names = useMemo(() => teams.map((team) => team.getTeamName()), [teams]);
-  // averages are computed once per teams change, not on every render or hover
-  const teamAverages = useMemo(
-    () =>
-      new Map(
-        teams.map((team) => [
-          team.getTeamName(),
-          {
-            total: team.getAvgPointsNoFouls(),
-            auto: team.getAvgAutoPoints(),
-            teleop: team.getAvgTeleopPoints(),
-            climb: team.getAvgClimbPoints(),
-          },
-        ]),
-      ),
-    [teams],
+  const updatePoolOrder = useCallback(
+    (order?: string[]) => {
+      pendingMotion.current = null;
+      landing.current = null;
+      motionMode.current = "fly";
+      swapCommit.current = false;
+      refreshBoxes.current = true;
+      setBoard((current) =>
+        order ? { ...current, order } : { ...current },
+      );
+    },
+    [setBoard],
   );
-  // same ordering as TeamsDisplay: highest average points first
-  const rankByName = useMemo(
-    () =>
-      new Map(
-        [...teams]
-          .sort(
-            (a, b) =>
-              (teamAverages.get(b.getTeamName())?.total ?? 0) -
-              (teamAverages.get(a.getTeamName())?.total ?? 0),
-          )
-          .map((team, index) => [team.getTeamName(), index + 1]),
-      ),
-    [teams, teamAverages],
-  );
-  const label = (name: string) =>
-    `${name.substring(3)} (#${rankByName.get(name)})`;
-  const slottedTeams = new Set(board.slots);
-  const pool = fullOrder(board.order, names).filter(
-    (name) => !slottedTeams.has(name) && rankByName.has(name),
-  );
-  // the one overlay serves the held chip, then the same element carries it to its box, so it is never torn down mid-flight
-  const ghostTeam = dragTeam ?? landingTeam;
 
   useEffect(
     () => () => {
@@ -482,6 +463,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       window.removeEventListener("resize", drop);
     };
     function drop() {
+      animation?.cancel();
       dispose();
       detached.current.delete(key);
       setFlights((current) => current.filter((flight) => flight.key !== key));
@@ -498,30 +480,24 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
 
   // flies the overlay from where it was released to the dropped chip's resting box. The overlay is position: fixed, so no card
   // clipping or z-index juggling is involved, and the real chip appears only once the overlay has arrived and is removed.
-  function startLanding(landed: Landing, rest: Box, origin: DOMRect) {
+  function startLanding(landed: Landing) {
     const overlay = overlayRef.current;
-    if (!overlay) {
+    const target = chipElement(landed.team);
+    if (!overlay || !target) {
       return false;
     }
-    const left = origin.left + rest.left;
-    const top = origin.top + rest.top;
     const { from } = landed;
-    const frame = (box: Box, scale: number): Keyframe => ({
-      transform: `translate(${box.left}px, ${box.top}px) scale(${scale})`,
-      width: `${box.width}px`,
-      height: `${box.height}px`,
-    });
-    const end: Box = { left, top, width: rest.width, height: rest.height };
-    // a drop onto an alliance box shrinks the chip, overshoots, then settles at its normal size
-    const keyframes: Keyframe[] = landed.pulse
-      ? [
-          { ...frame(from, 1), offset: 0 },
-          { ...frame(end, 0.9), offset: 0.5 },
-          { ...frame(end, 1.03), offset: 0.75 },
-          { ...frame(end, 1), offset: 1 },
-        ]
-      : [frame(from, 1), frame(end, 1)];
-    const distance = Math.hypot(left - from.left, top - from.top);
+    const targetRect = target.getBoundingClientRect();
+    const initialTarget: Box = {
+      left: targetRect.left,
+      top: targetRect.top,
+      width: targetRect.width,
+      height: targetRect.height,
+    };
+    const distance = Math.hypot(
+      initialTarget.left - from.left,
+      initialTarget.top - from.top,
+    );
     const duration = Math.min(MAX_MOVE_MS, MOVE_MS + distance * MS_PER_PX);
     // the shadow fades out over the same flight, so it is gone exactly when the real chip (which has none) takes over. It starts
     // from what is painted right now, not from the stylesheet's value: a drop made while a shadow is still ramping up or
@@ -533,58 +509,69 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       easing: "ease-out",
       fill: "forwards",
     });
-    const animation = overlay.animate(keyframes, {
-      duration,
-      easing: "cubic-bezier(0.2, 0, 0, 1)",
-      // holds the last frame until React swaps the overlay for the real chip, so it never snaps back to the release point
-      fill: "forwards",
+    const startTime = performance.now();
+    let frameId = 0;
+    let isRunning = true;
+    let resolveFinished: () => void = () => {};
+    const finished = new Promise<void>((resolve) => {
+      resolveFinished = resolve;
     });
-    landingAnim.current = animation;
-    const done = () => {
-      // a flight that was cancelled or replaced has already been settled
-      if (landingAnim.current === animation) {
-        settleLanding();
-      }
-    };
-    animation.finished.then(done, done);
-    // keep the moving destination aligned with its chip when the pool or page scrolls during the flight
-    const followLandingTarget = () => {
-      if (landingAnim.current !== animation) {
+    const finish = () => {
+      if (!isRunning) {
         return;
       }
-      const target = chipElement(landed.team);
-      const effect = animation.effect;
-      if (!target || !(effect instanceof KeyframeEffect)) {
+      isRunning = false;
+      cancelAnimationFrame(frameId);
+      resolveFinished();
+    };
+    const flight: LandingFlight = { cancel: finish, finished };
+    landingAnim.current = flight;
+    finished.then(() => {
+      if (landingAnim.current === flight) {
         settleLanding();
+      }
+    });
+
+    const tick = (now: number) => {
+      if (!isRunning) {
+        return;
+      }
+      const liveTarget = chipElement(landed.team);
+      if (!liveTarget) {
+        finish();
         return;
       }
 
-      const targetBox = target.getBoundingClientRect();
-      const endScales = landed.pulse ? [0.9, 1.03, 1] : [1];
-      effect.setKeyframes(
-        effect.getKeyframes().map((keyframe, index) =>
-          index === 0
-            ? keyframe
-            : {
-                ...keyframe,
-                transform: `translate(${targetBox.left}px, ${targetBox.top}px) scale(${endScales[index - 1] ?? 1})`,
-                width: `${targetBox.width}px`,
-                height: `${targetBox.height}px`,
-              },
-        ),
-      );
+      const progress = Math.min(1, (now - startTime) / duration);
+      const eased = landingEasing(progress);
+      // The old pulse keyframes reached the target at offset 0.5, then scaled in place.
+      const travelProgress = landed.pulse ? Math.min(1, eased / 0.5) : eased;
+      const liveRect = liveTarget.getBoundingClientRect();
+      const scrollX = liveRect.left - initialTarget.left;
+      const scrollY = liveRect.top - initialTarget.top;
+      const left = from.left + (initialTarget.left - from.left) * travelProgress + scrollX;
+      const top = from.top + (initialTarget.top - from.top) * travelProgress + scrollY;
+      const width = from.width + (liveRect.width - from.width) * travelProgress;
+      const height = from.height + (liveRect.height - from.height) * travelProgress;
+      let scale = 1;
+      if (landed.pulse && eased < 0.5) {
+        scale = 1 - 0.1 * (eased / 0.5);
+      } else if (landed.pulse && eased < 0.75) {
+        scale = 0.9 + 0.13 * ((eased - 0.5) / 0.25);
+      } else if (landed.pulse) {
+        scale = 1.03 - 0.03 * ((eased - 0.75) / 0.25);
+      }
+
+      overlay.style.width = `${width}px`;
+      overlay.style.height = `${height}px`;
+      overlay.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
+      if (progress === 1) {
+        finish();
+      } else {
+        frameId = requestAnimationFrame(tick);
+      }
     };
-    window.addEventListener("scroll", followLandingTarget, {
-      capture: true,
-      passive: true,
-    });
-    window.addEventListener("resize", followLandingTarget);
-    landingCleanup.current = () => {
-      window.removeEventListener("scroll", followLandingTarget, {
-        capture: true,
-      });
-      window.removeEventListener("resize", followLandingTarget);
-    };
+    frameId = requestAnimationFrame(tick);
     return true;
   }
 
@@ -593,7 +580,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
   useLayoutEffect(() => {
     const snapshot = pendingMotion.current;
     const landed = landing.current;
-    if (!snapshot && !landed) {
+    if (!snapshot && !landed && !refreshBoxes.current) {
       return;
     }
     pendingMotion.current = null;
@@ -612,6 +599,18 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       }
       return;
     }
+
+    if (refreshBoxes.current && !snapshot && !landed) {
+      boxes.current = new Map(
+        Array.from(card.querySelectorAll<HTMLElement>("[data-team]"), (element) => [
+          element.dataset.team ?? "",
+          relativeTo(element.getBoundingClientRect(), origin),
+        ]),
+      );
+      refreshBoxes.current = false;
+      return;
+    }
+    refreshBoxes.current = false;
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
@@ -645,7 +644,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
 
       // the dropped chip stays hidden under the overlay, which flies to the chip's resting box
       if (landed?.team === team) {
-        landingStarted = !reduceMotion && startLanding(landed, now, origin);
+        landingStarted = !reduceMotion && startLanding(landed);
         continue;
       }
 
@@ -743,32 +742,55 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       ) ?? [],
     );
     const rects = chips.map((chip) => chip.getBoundingClientRect());
-    // the gap the pointer is in, counted on the layout as it is on screen, where a held pool chip still has its hidden place
-    let gap = 0;
-    for (const rect of rects) {
-      const before =
-        y > rect.bottom || (y >= rect.top && x > rect.left + rect.width / 2);
-      if (!before) {
-        break;
-      }
-      gap++;
-    }
     const held = chips.findIndex((chip) => chip.dataset.team === team);
-    if (held === -1 || held >= gap) {
-      // nothing before the gap moves when the team is inserted
-      return gap;
+    if (rects.length === 0 || y < rects[0].top) {
+      return 0;
     }
-    // the held chip sits before the gap, so everything after it moves up one place once it leaves. The same gap can mean the
-    // end of one row or the front of the next; a pointer on the lower row means that row's first place, which is index gap
-    // (index gap - 1 would put the chip at the end of the row above).
-    const next = rects[gap];
-    const previous = rects[gap - 1];
-    const startsRow = !!next && next.top - previous.top > previous.height / 2;
-    const onLowerRow = startsRow && y >= (previous.bottom + next.top) / 2;
-    return onLowerRow ? gap : gap - 1;
+
+    const lastRect = rects[rects.length - 1];
+    let gap = rects.length;
+    if (y <= lastRect.bottom) {
+      const rows: { indices: number[]; centerY: number }[] = [];
+      rects.forEach((rect, index) => {
+        const row = rows[rows.length - 1];
+        if (!row || Math.abs(rect.top - rects[row.indices[0]].top) > rect.height / 2) {
+          rows.push({ indices: [index], centerY: rect.top + rect.height / 2 });
+        } else {
+          row.indices.push(index);
+        }
+      });
+
+      const columnCount = rows[0].indices.length;
+      const rowIndex = rows.reduce(
+        (closestIndex, candidate, index) =>
+          Math.abs(candidate.centerY - y) <
+          Math.abs(rows[closestIndex].centerY - y)
+            ? index
+            : closestIndex,
+        0,
+      );
+      const row = rows[rowIndex];
+      const firstIndex = row.indices[0];
+      const lastIndex = row.indices[row.indices.length - 1];
+      const lastChip = rects[lastIndex];
+      if (
+        row.indices.length === columnCount &&
+        x >= lastChip.left + lastChip.width / 2
+      ) {
+        return lastIndex;
+      }
+      gap = firstIndex + row.indices.filter((index) => {
+        const rect = rects[index];
+        return x > rect.left + rect.width / 2;
+      }).length;
+    }
+
+    return Math.max(0, gap - (held !== -1 && held < gap ? 1 : 0));
   }
 
   function moveToPool(team: string, index: number) {
+    motionMode.current = "fly";
+    swapCommit.current = false;
     setBoard((prev) => {
       const ordered = fullOrder(prev.order, names);
       const slots = prev.slots.map((slot) => (slot === team ? null : slot));
@@ -867,7 +889,15 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     window.getSelection()?.removeAllRanges();
     const pointerId = event.pointerId;
     // capture on the card: a chip moved between the pool and a slot is remounted, which can drop touch events aimed at it
-    cardRef.current?.setPointerCapture(pointerId);
+    const card = cardRef.current;
+    if (!card) {
+      return;
+    }
+    try {
+      card.setPointerCapture(pointerId);
+    } catch {
+      return;
+    }
     const fromSlot = board.slots.includes(team);
     dragRef.current = {
       team,
@@ -899,21 +929,56 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       if (!drag) {
         return;
       }
-      const slot = document
+      let slot = document
         .elementFromPoint(x, y)
         ?.closest<HTMLElement>("[data-slot]");
+      if (!slot) {
+        const slots = Array.from(
+          cardRef.current?.querySelectorAll<HTMLElement>(
+            ".alliance-grid [data-slot]",
+          ) ?? [],
+        ).map((element) => ({ element, rect: element.getBoundingClientRect() }));
+        if (slots.length > 0) {
+          const left = Math.min(...slots.map(({ rect }) => rect.left));
+          const right = Math.max(...slots.map(({ rect }) => rect.right));
+          const top = Math.min(...slots.map(({ rect }) => rect.top));
+          const bottom = Math.max(...slots.map(({ rect }) => rect.bottom));
+          if (x >= left && x <= right && y >= top && y <= bottom) {
+            slot = slots.reduce((nearest, candidate) => {
+              const nearestX =
+                nearest.rect.left + nearest.rect.width / 2 - x;
+              const nearestY =
+                nearest.rect.top + nearest.rect.height / 2 - y;
+              const candidateX =
+                candidate.rect.left + candidate.rect.width / 2 - x;
+              const candidateY =
+                candidate.rect.top + candidate.rect.height / 2 - y;
+              return candidateX ** 2 + candidateY ** 2 <
+                nearestX ** 2 + nearestY ** 2
+                ? candidate
+                : nearest;
+            }).element;
+          }
+        }
+      }
       const key = slot?.dataset.slot;
       hoverKey = key;
       drag.tx = x;
       drag.ty = y;
       if (key !== undefined) {
-        const sample =
-          key === "pool"
-            ? slot?.querySelector<HTMLElement>("[data-team]")
-            : slot;
+        const sample = slot?.querySelector<HTMLElement>("[data-team]");
         const size = sample?.getBoundingClientRect();
-        drag.tw = size ? size.width : drag.baseW;
-        drag.th = size ? size.height : drag.baseH;
+        if (size) {
+          drag.tw = size.width;
+          drag.th = size.height;
+        } else if (key !== "pool" && slot) {
+          const style = getComputedStyle(slot);
+          drag.tw = slot.clientWidth;
+          drag.th =
+            slot.clientHeight +
+            Number.parseFloat(style.borderTopWidth) +
+            Number.parseFloat(style.borderBottomWidth);
+        }
         const tone = key === "pool" ? "no" : "yes";
         if (tone !== drag.tone) {
           drag.tone = tone;
@@ -1125,6 +1190,158 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     }, 100);
   }
 
+  function reorder() {
+    endLanding();
+    snapshotChips();
+    motionMode.current = "fly";
+    setBoard((prev) => ({
+      ...prev,
+      order: [...names].sort(
+        (a, b) => (rankByName.get(a) ?? 0) - (rankByName.get(b) ?? 0),
+      ),
+    }));
+  }
+
+  function resetBoard() {
+    endLanding();
+    snapshotChips();
+    motionMode.current = "fade";
+    setBoard(emptyBoard());
+  }
+
+  return {
+    cardRef,
+    overlayRef,
+    dragTeam,
+    landingTeam,
+    dragTone,
+    overlayKey,
+    flights,
+    overPool,
+    hoverSlot,
+    snapshotChips,
+    endLanding,
+    autoFill,
+    reorder,
+    resetBoard,
+    updatePoolOrder,
+    handlePointerDown,
+  };
+}
+
+export const AllianceBuilderPage = memo(function AllianceBuilderPage({
+  eventChoices,
+  aggregateEvents,
+  displayEvents,
+  teams: allTeams,
+  isActive,
+  isTeamsDataUpdated,
+}: AllianceBuilderPageProps) {
+  const headerMessage = useMemo(
+    () => eventsLabel(eventChoices, aggregateEvents, displayEvents),
+    [eventChoices, aggregateEvents, displayEvents],
+  );
+
+  // only teams with matches in the displayed events, with stats limited to those matches
+  const teams = useMemo<FrcTeam[]>(() => {
+    return allTeams.flatMap((team) => {
+      return getDisplayTeamData(team, aggregateEvents, displayEvents);
+    });
+  }, [allTeams, displayEvents, aggregateEvents]);
+  const teamNames = useMemo<Set<string>>(
+    () => new Set(teams.flatMap((teams) => teams.getTeamName())),
+    [teams],
+  );
+
+  const [board, setBoard] = useState<Board>(emptyBoard);
+  const names = useMemo(() => teams.map((team) => team.getTeamName()), [teams]);
+  // averages are computed once per teams change, not on every render or hover
+  const teamAverages = useMemo(
+    () =>
+      new Map(
+        teams.map((team) => [
+          team.getTeamName(),
+          {
+            total: team.getAvgPointsNoFouls(),
+            auto: team.getAvgAutoPoints(),
+            teleop: team.getAvgTeleopPoints(),
+            climb: team.getAvgClimbPoints(),
+          },
+        ]),
+      ),
+    [teams],
+  );
+  // same ordering as TeamsDisplay: highest average points first
+  const rankByName = useMemo(
+    () =>
+      new Map(
+        [...teams]
+          .sort(
+            (a, b) =>
+              (teamAverages.get(b.getTeamName())?.total ?? 0) -
+              (teamAverages.get(a.getTeamName())?.total ?? 0),
+          )
+          .map((team, index) => [team.getTeamName(), index + 1]),
+      ),
+    [teams, teamAverages],
+  );
+  const previousAggregateEvents = useRef<string[]>([]);
+  const {
+    cardRef,
+    overlayRef,
+    dragTeam,
+    landingTeam,
+    dragTone,
+    overlayKey,
+    flights,
+    overPool,
+    hoverSlot,
+    autoFill,
+    reorder,
+    resetBoard,
+    updatePoolOrder,
+    handlePointerDown,
+  } = useAllianceBuilderInteractions({
+    board,
+    setBoard,
+    names,
+    rankByName,
+    teamNames,
+    isActive,
+  });
+  useEffect(() => {
+    const previous = previousAggregateEvents.current;
+    const aggregateEventsChanged =
+      previous.length !== aggregateEvents.length ||
+      previous.some((event, index) => event !== aggregateEvents[index]);
+    if (!aggregateEventsChanged || !isTeamsDataUpdated) {
+      return;
+    }
+
+    previousAggregateEvents.current = aggregateEvents;
+    updatePoolOrder(
+      previous.length === 0 && aggregateEvents.length > 0
+        ? [...names].sort(
+          (a, b) => (rankByName.get(a) ?? 0) - (rankByName.get(b) ?? 0),
+          )
+        : undefined,
+    );
+  }, [
+    aggregateEvents,
+    isTeamsDataUpdated,
+    names,
+    rankByName,
+    updatePoolOrder,
+  ]);
+  const label = (name: string) =>
+    `${name.substring(3)} (#${rankByName.get(name)})`;
+  const slottedTeams = new Set(board.slots);
+  const pool = fullOrder(board.order, names).filter(
+    (name) => !slottedTeams.has(name) && rankByName.has(name),
+  );
+  // the one overlay serves the held chip, then the same element carries it to its box, so it is never torn down mid-flight
+  const ghostTeam = dragTeam ?? landingTeam;
+
   function allianceStats(alliance: number, slots: (string | null)[]) {
     const start = alliance * PICK_COLUMNS.length;
     const alliancePicks = slots.slice(start, start + PICK_COLUMNS.length);
@@ -1165,25 +1382,15 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
   const allStats = ALLIANCE_IDS.map((_, alliance) =>
     allianceStats(alliance, statSlots),
   );
-  const statRanges = {
-    total: createDataRange(),
-    auto: createDataRange(),
-    teleop: createDataRange(),
-    climb: createDataRange(),
-  };
+  const statRanges = Object.fromEntries(
+    STAT_KEYS.map((stat) => [stat, createDataRange()]),
+  ) as Record<(typeof STAT_KEYS)[number], DataRange>;
   allStats.forEach((stats) => {
-    if (!isZero(stats.total)) {
-      extendDataRange(statRanges.total, stats.total);
-    }
-    if (!isZero(stats.auto)) {
-      extendDataRange(statRanges.auto, stats.auto);
-    }
-    if (!isZero(stats.teleop)) {
-      extendDataRange(statRanges.teleop, stats.teleop);
-    }
-    if (!isZero(stats.climb)) {
-      extendDataRange(statRanges.climb, stats.climb);
-    }
+    STAT_KEYS.forEach((stat) => {
+      if (!isZero(stats[stat])) {
+        extendDataRange(statRanges[stat], stats[stat]);
+      }
+    });
   });
 
   // the held (or still landing) chip stays in layout, hidden, so the grid doesn't jump and the overlay is the only thing visible
@@ -1230,29 +1437,14 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
           <button
             type="button"
             disabled={pool.length <= 1}
-            onClick={() => {
-              endLanding();
-              snapshotChips();
-              motionMode.current = "fly";
-              setBoard((prev) => ({
-                ...prev,
-                order: [...names].sort(
-                  (a, b) => (rankByName.get(a) ?? 0) - (rankByName.get(b) ?? 0),
-                ),
-              }));
-            }}
+            onClick={reorder}
           >
             Reorder
           </button>
           <button
             type="button"
             disabled={board.slots.every((slot) => slot === null)}
-            onClick={() => {
-              endLanding();
-              snapshotChips();
-              motionMode.current = "fade";
-              setBoard(emptyBoard());
-            }}
+            onClick={resetBoard}
           >
             Reset
           </button>
@@ -1360,7 +1552,6 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
                     ref={overlayRef}
                     type="button"
                     tabIndex={-1}
-                    aria-hidden="true"
                     draggable={false}
                     className={`button event-button ${dragTone} alliance-drag-overlay`}
                     // while the overlay carries a dropped chip to its box it is the chip, so it can be grabbed again mid-flight.
