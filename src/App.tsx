@@ -6,6 +6,7 @@ import {
   StepBack,
   Trophy,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
@@ -54,6 +55,28 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
 const auth = getAuth(app);
+
+function KeepMountedPage({
+  active,
+  children,
+}: {
+  active: boolean;
+  children: ReactNode;
+}) {
+  const [hasBeenActive, setHasBeenActive] = useState(active);
+
+  useEffect(() => {
+    if (active) {
+      setHasBeenActive(true);
+    }
+  }, [active]);
+
+  if (!active && !hasBeenActive) {
+    return null;
+  }
+
+  return <div hidden={!active}>{children}</div>;
+}
 
 function App() {
   const [autoLoginDone, setAutoLoginDone] = useState(false);
@@ -177,6 +200,11 @@ function App() {
       setDisplayEvents([...aggregateEvents]);
     }
   }
+
+  const handleTeamClick = useCallback((team: FrcTeam) => {
+    setSelectedTeam(team);
+    setCurrentPage(Page.TeamOverview);
+  }, []);
 
   //run when app loads
   useEffect(() => {
@@ -309,40 +337,40 @@ function App() {
         />
       )}
 
-      <div hidden={currentPage !== Page.EventsOverview}>
+      <KeepMountedPage active={currentPage === Page.EventsOverview}>
         <EventsOverviewPage
           eventChoices={eventChoices}
           aggregateEvents={aggregateEvents}
           displayEvents={displayEvents}
           teams={teams}
-          onTeamClick={(team) => {
-            setSelectedTeam(team);
-            setCurrentPage(Page.TeamOverview);
-          }}
+          isActive={currentPage === Page.EventsOverview}
+          onTeamClick={handleTeamClick}
         />
-      </div>
+      </KeepMountedPage>
 
       {currentPage === Page.TeamOverview && (
         <TeamOverviewPage selectedTeam={selectedTeam} />
       )}
 
-      <div hidden={currentPage !== Page.AllianceBuilder}>
+      <KeepMountedPage active={currentPage === Page.AllianceBuilder}>
         <AllianceBuilderPage
           eventChoices={eventChoices}
           aggregateEvents={aggregateEvents}
           displayEvents={displayEvents}
           teams={teams}
+          isActive={currentPage === Page.AllianceBuilder}
         />
-      </div>
+      </KeepMountedPage>
 
-      <div hidden={currentPage !== Page.ScouterLeaderboard}>
+      <KeepMountedPage active={currentPage === Page.ScouterLeaderboard}>
         <ScouterLeaderboardPage
           firestore={firestore}
           eventChoices={eventChoices}
           aggregateEvents={aggregateEvents}
           displayEvents={displayEvents}
+          isActive={currentPage === Page.ScouterLeaderboard}
         />
-      </div>
+      </KeepMountedPage>
     </main>
   );
 }

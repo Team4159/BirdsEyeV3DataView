@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import {
   createDataRange,
   type DataRange,
@@ -7,6 +7,7 @@ import {
 import { eventsLabel } from "../util/eventsLabel";
 import type { FrcTeam } from "../util/FrcTeam";
 import { getStatColor } from "../util/getStatColor";
+import { pagePropsEqual } from "../util/pagePropsEqual";
 import { getDisplayTeamData } from "../util/teamData";
 
 type DataRangeKey =
@@ -19,8 +20,33 @@ type DataRangeKey =
   | "avgFouls"
   | "avgTechFouls";
 
+type TeamSortKey =
+  | "Rank"
+  | "Team"
+  | "Data"
+  | "Total"
+  | "Auto"
+  | "Teleop"
+  | "Climb"
+  | "Driver Rating"
+  | "Fouls"
+  | "Major Fouls";
+
+type TeamStatistics = {
+  team: FrcTeam;
+  teamName: string;
+  avgScore: number;
+  autoAvgScore: number;
+  teleopAvgScore: number;
+  climbAvgScore: number;
+  dataPoints: number;
+  avgDriverRating: number;
+  avgFouls: number;
+  avgTechFouls: number;
+};
+
 function calculateDataRanges(
-  teams: FrcTeam[],
+  teams: TeamStatistics[],
 ): Readonly<Record<DataRangeKey, DataRange>> {
   const dataRanges: Record<DataRangeKey, DataRange> = {
     avgScore: createDataRange(),
@@ -33,62 +59,63 @@ function calculateDataRanges(
     avgTechFouls: createDataRange(),
   };
   teams.forEach((team) => {
-    extendDataRange(dataRanges.avgScore, team.getAvgPointsNoFouls());
-    extendDataRange(dataRanges.autoAvgScore, team.getAvgAutoPoints());
-    extendDataRange(dataRanges.teleopAvgScore, team.getAvgTeleopPoints());
-    extendDataRange(dataRanges.climbAvgScore, team.getAvgClimbPoints());
-    extendDataRange(dataRanges.dataPoints, team.getDataPoints());
-    extendDataRange(dataRanges.avgDriverRating, team.getAvgDriverRating());
-    extendDataRange(dataRanges.avgFouls, team.getAvgFouls());
-    extendDataRange(dataRanges.avgTechFouls, team.getAvgTechFouls());
+    extendDataRange(dataRanges.avgScore, team.avgScore);
+    extendDataRange(dataRanges.autoAvgScore, team.autoAvgScore);
+    extendDataRange(dataRanges.teleopAvgScore, team.teleopAvgScore);
+    extendDataRange(dataRanges.climbAvgScore, team.climbAvgScore);
+    extendDataRange(dataRanges.dataPoints, team.dataPoints);
+    extendDataRange(dataRanges.avgDriverRating, team.avgDriverRating);
+    extendDataRange(dataRanges.avgFouls, team.avgFouls);
+    extendDataRange(dataRanges.avgTechFouls, team.avgTechFouls);
   });
   return dataRanges;
 }
 
-type TeamSortComparator = (a: FrcTeam, b: FrcTeam) => number;
-const createTeamSortComparator = (comparator: TeamSortComparator) =>
-  ((a, b) =>
-    comparator(a, b) ||
-    b.getAvgPointsNoFouls() - a.getAvgPointsNoFouls() ||
-    b.getTeamName().localeCompare(a.getTeamName())) as TeamSortComparator;
-const teamSortComparators = {
-  Rank: createTeamSortComparator((a, b) => b.getAvgPointsNoFouls() - a.getAvgPointsNoFouls()),
-  Total: createTeamSortComparator(
-    (a, b) => b.getAvgPointsNoFouls() - a.getAvgPointsNoFouls(),
-  ),
-  Auto: createTeamSortComparator(
-    (a, b) => b.getAvgAutoPoints() - a.getAvgAutoPoints(),
-  ),
-  Teleop: createTeamSortComparator(
-    (a, b) => b.getAvgTeleopPoints() - a.getAvgTeleopPoints(),
-  ),
-  Climb: createTeamSortComparator(
-    (a, b) => b.getAvgClimbPoints() - a.getAvgClimbPoints(),
-  ),
-  "Driver Rating": createTeamSortComparator(
-    (a, b) => b.getAvgDriverRating() - a.getAvgDriverRating(),
-  ),
-  Fouls: createTeamSortComparator((a, b) => a.getAvgFouls() - b.getAvgFouls()),
-  "Major Fouls": createTeamSortComparator(
-    (a, b) => a.getAvgTechFouls() - b.getAvgTechFouls(),
-  ),
-  Data: createTeamSortComparator(
-    (a, b) => b.getDataPoints() - a.getDataPoints(),
-  ),
-  Team: createTeamSortComparator(
-    (a, b) =>
-      parseInt(b.getTeamName().substring(3), 10) -
-        parseInt(a.getTeamName().substring(3), 10) ||
-      b.getTeamName().localeCompare(a.getTeamName()),
-  ),
-} as const satisfies Record<string, TeamSortComparator>;
+function compareTeamStatistics(
+  a: TeamStatistics,
+  b: TeamStatistics,
+  key: TeamSortKey,
+): number {
+  let comparison = 0;
+  switch (key) {
+    case "Rank":
+    case "Total":
+      comparison = b.avgScore - a.avgScore;
+      break;
+    case "Auto":
+      comparison = b.autoAvgScore - a.autoAvgScore;
+      break;
+    case "Teleop":
+      comparison = b.teleopAvgScore - a.teleopAvgScore;
+      break;
+    case "Climb":
+      comparison = b.climbAvgScore - a.climbAvgScore;
+      break;
+    case "Driver Rating":
+      comparison = b.avgDriverRating - a.avgDriverRating;
+      break;
+    case "Fouls":
+      comparison = a.avgFouls - b.avgFouls;
+      break;
+    case "Major Fouls":
+      comparison = a.avgTechFouls - b.avgTechFouls;
+      break;
+    case "Data":
+      comparison = b.dataPoints - a.dataPoints;
+      break;
+    case "Team":
+      return (
+        parseInt(b.teamName.substring(3), 10) -
+          parseInt(a.teamName.substring(3), 10) ||
+        b.teamName.localeCompare(a.teamName)
+      );
+  }
 
-function getTeamSortComparator(
-  key: keyof typeof teamSortComparators,
-  inverted: boolean,
-): TeamSortComparator {
-  const invert = inverted ? -1 : 1;
-  return (a, b) => teamSortComparators[key](a, b) * invert;
+  return (
+    comparison ||
+    b.avgScore - a.avgScore ||
+    b.teamName.localeCompare(a.teamName)
+  );
 }
 
 type EventsOverviewPageProps = {
@@ -97,228 +124,241 @@ type EventsOverviewPageProps = {
   displayEvents: string[];
   teams: FrcTeam[];
   onTeamClick: (team: FrcTeam) => void;
+  isActive: boolean;
 };
 
-export function EventsOverviewPage({
-  eventChoices,
-  aggregateEvents,
-  displayEvents,
-  teams,
-  onTeamClick,
-}: EventsOverviewPageProps) {
-  const headerMessage = useMemo(
-    () => eventsLabel(eventChoices, aggregateEvents, displayEvents),
-    [eventChoices, aggregateEvents, displayEvents],
-  );
-
-  const displayedTeams = useMemo(() => {
-    return teams.flatMap((team) => {
-      return getDisplayTeamData(team, aggregateEvents, displayEvents);
-    });
-  }, [teams, aggregateEvents, displayEvents]);
-
-  const dataRanges = useMemo(
-    () => calculateDataRanges(displayedTeams),
-    [displayedTeams],
-  );
-  const teamSortComparatorKey =
-    useRef<keyof typeof teamSortComparators>("Rank");
-  const teamSortComparatorInverted = useRef<boolean>(false);
-  const [teamSortComparator, setTeamSortComparator] =
-    useState<TeamSortComparator>(() =>
-      getTeamSortComparator(
-        teamSortComparatorKey.current,
-        teamSortComparatorInverted.current,
-      ),
+export const EventsOverviewPage = memo(
+  function EventsOverviewPage({
+    eventChoices,
+    aggregateEvents,
+    displayEvents,
+    teams,
+    onTeamClick,
+  }: EventsOverviewPageProps) {
+    const headerMessage = useMemo(
+      () => eventsLabel(eventChoices, aggregateEvents, displayEvents),
+      [eventChoices, aggregateEvents, displayEvents],
     );
-  const sortedTeams = useMemo(
-    () => displayedTeams.toSorted(teamSortComparator),
-    [displayedTeams, teamSortComparator],
-  );
-  const sortedTeamsByPoints = useMemo(
-    () => displayedTeams.toSorted(teamSortComparators.Rank),
-    [displayedTeams],
-  );
 
-  const handleSort = (key: keyof typeof teamSortComparators) => {
-    if (teamSortComparators[key]) {
-      if (teamSortComparatorKey.current !== key) {
-        teamSortComparatorKey.current = key;
-        teamSortComparatorInverted.current = false;
+    const displayedTeams = useMemo(() => {
+      return teams.flatMap((team) => {
+        return getDisplayTeamData(team, aggregateEvents, displayEvents);
+      });
+    }, [teams, aggregateEvents, displayEvents]);
+
+    const teamStatistics = useMemo<TeamStatistics[]>(
+      () =>
+        displayedTeams.map((team) => ({
+          team,
+          teamName: team.getTeamName(),
+          avgScore: team.getAvgPointsNoFouls(),
+          autoAvgScore: team.getAvgAutoPoints(),
+          teleopAvgScore: team.getAvgTeleopPoints(),
+          climbAvgScore: team.getAvgClimbPoints(),
+          dataPoints: team.getDataPoints(),
+          avgDriverRating: team.getAvgDriverRating(),
+          avgFouls: team.getAvgFouls(),
+          avgTechFouls: team.getAvgTechFouls(),
+        })),
+      [displayedTeams],
+    );
+    const dataRanges = useMemo(
+      () => calculateDataRanges(teamStatistics),
+      [teamStatistics],
+    );
+    const [teamSortKey, setTeamSortKey] = useState<TeamSortKey>("Rank");
+    const [teamSortInverted, setTeamSortInverted] = useState(false);
+    const sortedTeams = useMemo(
+      () =>
+        teamStatistics.toSorted((a, b) => {
+          const comparison = compareTeamStatistics(a, b, teamSortKey);
+          return teamSortInverted ? -comparison : comparison;
+        }),
+      [teamStatistics, teamSortKey, teamSortInverted],
+    );
+    const rankByTeamName = useMemo(
+      () =>
+        new Map(
+          teamStatistics
+            .toSorted((a, b) => compareTeamStatistics(a, b, "Rank"))
+            .map((team, index): [string, number] => [team.teamName, index + 1]),
+        ),
+      [teamStatistics],
+    );
+
+    const handleSort = (key: TeamSortKey) => {
+      if (teamSortKey === key) {
+        setTeamSortInverted((inverted) => !inverted);
       } else {
-        teamSortComparatorInverted.current =
-          !teamSortComparatorInverted.current;
+        setTeamSortKey(key);
+        setTeamSortInverted(false);
       }
-      setTeamSortComparator(() =>
-        getTeamSortComparator(key, teamSortComparatorInverted.current),
+    };
+
+    function header(name: TeamSortKey) {
+      return (
+        <div className="events-overview-header">
+          <button
+            type="button"
+            className="events-overview-sort-button"
+            onClick={() => handleSort(name)}
+            style={{
+              boxShadow:
+                teamSortKey === name && !teamSortInverted
+                  ? "inset 0 2px 0 0 white"
+                  : teamSortKey === name && teamSortInverted
+                    ? "inset 0 -2px 0 0 white"
+                    : undefined,
+            }}
+          >
+            {name}
+          </button>
+        </div>
       );
     }
-  };
 
-  function header(name: keyof typeof teamSortComparators) {
-    return (
-      <div className="events-overview-header">
-        <button
-          type="button"
-          className="events-overview-sort-button"
-          onClick={() => handleSort(name)}
-          style={{
-            boxShadow:
-              teamSortComparatorKey.current === name &&
-              !teamSortComparatorInverted.current
-                ? "inset 0 2px 0 0 white"
-                : teamSortComparatorKey.current === name &&
-                    teamSortComparatorInverted.current
-                  ? "inset 0 -2px 0 0 white"
-                  : undefined,
-          }}
-        >
-          {name}
-        </button>
+    return displayEvents.length === 0 ? (
+      <div className="card">
+        <h1>Events Overview</h1>
+        <span className="text-container">{headerMessage}</span>
+      </div>
+    ) : (
+      <div className="wide-card">
+        <h1>Events Overview</h1>
+        <span className="text-container">{headerMessage}</span>
+        <div className="x-scroll-container events-overview-container">
+          <div
+            className="events-overview-row"
+            style={{
+              paddingBottom: "4px",
+            }}
+          >
+            {header("Rank")}
+            {header("Team")}
+            {header("Data")}
+            {header("Total")}
+            {header("Auto")}
+            {header("Teleop")}
+            {header("Climb")}
+            {header("Driver Rating")}
+            {header("Fouls")}
+            {header("Major Fouls")}
+          </div>
+          {sortedTeams.map((stats) => (
+            <button
+              key={stats.teamName}
+              type="button"
+              className="events-overview-row"
+              onClick={() => onTeamClick(stats.team)}
+              style={{ cursor: "pointer" }}
+            >
+              <div className="events-overview-item">
+                #{rankByTeamName.get(stats.teamName)}
+              </div>
+              <div className="events-overview-item">
+                {stats.teamName.substring(3)}
+              </div>
+              <div
+                style={{
+                  color: getStatColor(
+                    stats.dataPoints,
+                    dataRanges.dataPoints,
+                    false,
+                  ),
+                }}
+                className="events-overview-item"
+              >
+                {stats.dataPoints}
+              </div>
+              <div
+                style={{
+                  color: getStatColor(
+                    stats.avgScore,
+                    dataRanges.avgScore,
+                    false,
+                  ),
+                }}
+                className="events-overview-item"
+              >
+                {stats.avgScore.toFixed(2)}
+              </div>
+              <div
+                style={{
+                  color: getStatColor(
+                    stats.autoAvgScore,
+                    dataRanges.autoAvgScore,
+                    false,
+                  ),
+                }}
+                className="events-overview-item"
+              >
+                {stats.autoAvgScore.toFixed(2)}
+              </div>
+              <div
+                style={{
+                  color: getStatColor(
+                    stats.teleopAvgScore,
+                    dataRanges.teleopAvgScore,
+                    false,
+                  ),
+                }}
+                className="events-overview-item"
+              >
+                {stats.teleopAvgScore.toFixed(2)}
+              </div>
+              <div
+                style={{
+                  color: getStatColor(
+                    stats.climbAvgScore,
+                    dataRanges.climbAvgScore,
+                    false,
+                  ),
+                }}
+                className="events-overview-item"
+              >
+                {stats.climbAvgScore.toFixed(2)}
+              </div>
+              <div
+                style={{
+                  color: getStatColor(
+                    stats.avgDriverRating,
+                    dataRanges.avgDriverRating,
+                    false,
+                  ),
+                }}
+                className="events-overview-item"
+              >
+                {stats.avgDriverRating.toFixed(2)}
+              </div>
+              <div
+                style={{
+                  color: getStatColor(
+                    stats.avgFouls,
+                    dataRanges.avgFouls,
+                    true,
+                  ),
+                }}
+                className="events-overview-item"
+              >
+                {stats.avgFouls.toFixed(2)}
+              </div>
+              <div
+                style={{
+                  color: getStatColor(
+                    stats.avgTechFouls,
+                    dataRanges.avgTechFouls,
+                    true,
+                  ),
+                }}
+                className="events-overview-item"
+              >
+                {stats.avgTechFouls.toFixed(2)}
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     );
-  }
-
-  return displayEvents.length === 0 ? (
-    <div className="card">
-      <h1>Events Overview</h1>
-      <span className="text-container">{headerMessage}</span>
-    </div>
-  ) : (
-    <div className="wide-card">
-      <h1>Events Overview</h1>
-      <span className="text-container">{headerMessage}</span>
-      <div className="x-scroll-container events-overview-container">
-        <div
-          className="events-overview-row"
-          style={{
-            paddingBottom: "4px",
-          }}
-        >
-          {header("Rank")}
-          {header("Team")}
-          {header("Data")}
-          {header("Total")}
-          {header("Auto")}
-          {header("Teleop")}
-          {header("Climb")}
-          {header("Driver Rating")}
-          {header("Fouls")}
-          {header("Major Fouls")}
-        </div>
-        {sortedTeams.map((team) => (
-          <button
-            key={team.getTeamName()}
-            type="button"
-            className="events-overview-row"
-            onClick={() => onTeamClick(team)}
-            style={{ cursor: "pointer" }}
-          >
-            <div className="events-overview-item">
-              #{sortedTeamsByPoints.indexOf(team) + 1}
-            </div>
-            <div className="events-overview-item">
-              {team.getTeamName().substring(3)}
-            </div>
-            <div
-              style={{
-                color: getStatColor(
-                  team.getDataPoints(),
-                  dataRanges.dataPoints,
-                  false,
-                ),
-              }}
-              className="events-overview-item"
-            >
-              {team.getDataPoints()}
-            </div>
-            <div
-              style={{
-                color: getStatColor(
-                  team.getAvgPointsNoFouls(),
-                  dataRanges.avgScore,
-                  false,
-                ),
-              }}
-              className="events-overview-item"
-            >
-              {team.getAvgPointsNoFouls().toFixed(2)}
-            </div>
-            <div
-              style={{
-                color: getStatColor(
-                  team.getAvgAutoPoints(),
-                  dataRanges.autoAvgScore,
-                  false,
-                ),
-              }}
-              className="events-overview-item"
-            >
-              {team.getAvgAutoPoints().toFixed(2)}
-            </div>
-            <div
-              style={{
-                color: getStatColor(
-                  team.getAvgTeleopPoints(),
-                  dataRanges.teleopAvgScore,
-                  false,
-                ),
-              }}
-              className="events-overview-item"
-            >
-              {team.getAvgTeleopPoints().toFixed(2)}
-            </div>
-            <div
-              style={{
-                color: getStatColor(
-                  team.getAvgClimbPoints(),
-                  dataRanges.climbAvgScore,
-                  false,
-                ),
-              }}
-              className="events-overview-item"
-            >
-              {team.getAvgClimbPoints().toFixed(2)}
-            </div>
-            <div
-              style={{
-                color: getStatColor(
-                  team.getAvgDriverRating(),
-                  dataRanges.avgDriverRating,
-                  false,
-                ),
-              }}
-              className="events-overview-item"
-            >
-              {team.getAvgDriverRating().toFixed(2)}
-            </div>
-            <div
-              style={{
-                color: getStatColor(
-                  team.getAvgFouls(),
-                  dataRanges.avgFouls,
-                  true,
-                ),
-              }}
-              className="events-overview-item"
-            >
-              {team.getAvgFouls().toFixed(2)}
-            </div>
-            <div
-              style={{
-                color: getStatColor(
-                  team.getAvgTechFouls(),
-                  dataRanges.avgTechFouls,
-                  true,
-                ),
-              }}
-              className="events-overview-item"
-            >
-              {team.getAvgTechFouls().toFixed(2)}
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
+  },
+  pagePropsEqual,
+);
