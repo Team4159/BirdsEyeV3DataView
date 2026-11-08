@@ -80,7 +80,13 @@ type Drag = {
 
 type DragStartEvent = Pick<
   ReactPointerEvent<HTMLButtonElement>,
-  "button" | "isPrimary" | "pointerId" | "clientX" | "clientY" | "currentTarget"
+  | "button"
+  | "isPrimary"
+  | "pointerId"
+  | "pointerType"
+  | "clientX"
+  | "clientY"
+  | "currentTarget"
 >;
 
 function emptyBoard(): Board {
@@ -809,29 +815,22 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     // the board before the drag, restored if the chip is released outside any box
     const startBoard = board;
     let hoverKey: string | undefined;
-    const onMove = (move: PointerEvent) => {
-      if (move.pointerId !== pointerId) {
-        return;
-      }
-      // a mouse button released outside the window, or swallowed by a context menu, never sends pointerup
-      if (move.pointerType === "mouse" && move.buttons === 0) {
-        onUp(move);
-        return;
-      }
+    let pointerX = event.clientX;
+    let pointerY = event.clientY;
+    let autoScrollFrame = 0;
+    const updateDropTarget = (x: number, y: number) => {
       const drag = dragRef.current;
       if (!drag) {
         return;
       }
-      // the overlay ignores pointer events, so this finds the slot under the cursor
       const slot = document
-        .elementFromPoint(move.clientX, move.clientY)
+        .elementFromPoint(x, y)
         ?.closest<HTMLElement>("[data-slot]");
       const key = slot?.dataset.slot;
       hoverKey = key;
-      drag.tx = move.clientX;
-      drag.ty = move.clientY;
+      drag.tx = x;
+      drag.ty = y;
       if (key !== undefined) {
-        // over the pool, use a pool chip's size: a chip grabbed from a slot is wider than a pool chip
         const sample =
           key === "pool"
             ? slot?.querySelector<HTMLElement>("[data-team]")
@@ -852,7 +851,6 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
         setDragTone(tone);
       }
       setOverPool(key === "pool");
-      // index -1 previews a slotted team leaving its alliance, whether it's over the pool or over no box
       const hovered =
         key !== undefined && key !== "pool"
           ? { team, index: Number(key) }
@@ -865,6 +863,59 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
           : hovered,
       );
     };
+    const onMove = (move: PointerEvent) => {
+      if (move.pointerId !== pointerId) {
+        return;
+      }
+      // a mouse button released outside the window, or swallowed by a context menu, never sends pointerup
+      if (move.pointerType === "mouse" && move.buttons === 0) {
+        onUp(move);
+        return;
+      }
+      pointerX = move.clientX;
+      pointerY = move.clientY;
+      updateDropTarget(pointerX, pointerY);
+    };
+
+    const autoScroll = () => {
+      if (!dragRef.current) {
+        return;
+      }
+      const edgeSize = 56;
+      const scrollStep = 8;
+      let scrolled = false;
+      const card = cardRef.current;
+      if (card) {
+        const bounds = card.getBoundingClientRect();
+        if (pointerX < bounds.left + edgeSize && card.scrollLeft > 0) {
+          card.scrollLeft = Math.max(0, card.scrollLeft - scrollStep);
+          scrolled = true;
+        } else if (
+          pointerX > bounds.right - edgeSize &&
+          card.scrollLeft + card.clientWidth < card.scrollWidth
+        ) {
+          card.scrollLeft += scrollStep;
+          scrolled = true;
+        }
+      }
+      const page = document.scrollingElement;
+      if (page) {
+        if (pointerY < edgeSize && page.scrollTop > 0) {
+          window.scrollBy(0, -scrollStep);
+          scrolled = true;
+        } else if (
+          pointerY > window.innerHeight - edgeSize &&
+          page.scrollTop + page.clientHeight < page.scrollHeight
+        ) {
+          window.scrollBy(0, scrollStep);
+          scrolled = true;
+        }
+      }
+      if (scrolled) {
+        updateDropTarget(pointerX, pointerY);
+      }
+      autoScrollFrame = requestAnimationFrame(autoScroll);
+    };
 
     // stops the browser from starting a text selection or a native drag while the chip is held
     const blockDefault = (blocked: Event) => blocked.preventDefault();
@@ -874,6 +925,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onPointerCancel);
       window.removeEventListener("touchmove", onTouchMove);
+      cancelAnimationFrame(autoScrollFrame);
       window.removeEventListener("blur", onAbort);
       window.removeEventListener("contextmenu", blockDefault);
       window.removeEventListener("dragstart", blockDefault);
@@ -952,6 +1004,9 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     window.addEventListener("dragstart", blockDefault);
     window.addEventListener("selectstart", blockDefault);
     stopDrag.current = stop;
+    if (event.pointerType === "touch") {
+      autoScrollFrame = requestAnimationFrame(autoScroll);
+    }
   }
 
   function handlePointerDown(
@@ -972,6 +1027,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     const cleanup = () => {
       window.clearTimeout(timeout);
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("pointerup", onEnd);
       window.removeEventListener("pointercancel", onEnd);
       if (cancelPendingTouchDrag.current === cleanup) {
@@ -986,6 +1042,16 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
         cleanup();
       }
     };
+    const onTouchMove = (move: TouchEvent) => {
+      for (const touch of Array.from(move.changedTouches)) {
+        if (
+          Math.hypot(touch.clientX - clientX, touch.clientY - clientY) > 10
+        ) {
+          cleanup();
+          return;
+        }
+      }
+    };
     const onEnd = (end: PointerEvent) => {
       if (end.pointerId === pointerId) {
         cleanup();
@@ -995,6 +1061,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     cancelPendingTouchDrag.current?.();
     cancelPendingTouchDrag.current = cleanup;
     window.addEventListener("pointermove", onMove);
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
     window.addEventListener("pointerup", onEnd);
     window.addEventListener("pointercancel", onEnd);
     timeout = window.setTimeout(() => {
@@ -1004,13 +1071,14 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
           button: 0,
           isPrimary: true,
           pointerId,
+          pointerType: "touch",
           clientX,
           clientY,
           currentTarget: button,
         },
         team,
       );
-    }, 250);
+    }, 100);
   }
 
   function allianceStats(alliance: number, slots: (string | null)[]) {
