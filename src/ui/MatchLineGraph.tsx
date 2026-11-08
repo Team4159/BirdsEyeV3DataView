@@ -301,7 +301,7 @@ function getScoreSeries(seriesType: SeriesType): ScoreSeriesItem[] {
 function getPointAxisConfig(scoreValues: number[]) {
   const scoreMinimum = Math.min(...scoreValues);
   const scoreMaximum = Math.max(...scoreValues);
-  const axisMinimum = scoreMinimum < 0 ? scoreMinimum : 0;
+  const axisMinimum = Math.min(scoreMinimum, 0);
   const rawTickStep = Math.max(1, (scoreMaximum - axisMinimum) / 5);
   const tickMagnitude = 10 ** Math.floor(Math.log10(rawTickStep));
   const normalizedTickStep = rawTickStep / tickMagnitude;

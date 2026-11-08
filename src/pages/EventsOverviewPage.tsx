@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from "react";
+import { FetchingDataText } from "../ui/FetchingDataText";
 import {
   createDataRange,
   type DataRange,
@@ -125,107 +126,109 @@ type EventsOverviewPageProps = {
   teams: FrcTeam[];
   onTeamClick: (team: FrcTeam) => void;
   isActive: boolean;
+  isTeamsDataUpdated: boolean;
 };
 
-export const EventsOverviewPage = memo(
-  function EventsOverviewPage({
-    eventChoices,
-    aggregateEvents,
-    displayEvents,
-    teams,
-    onTeamClick,
-  }: EventsOverviewPageProps) {
-    const headerMessage = useMemo(
-      () => eventsLabel(eventChoices, aggregateEvents, displayEvents),
-      [eventChoices, aggregateEvents, displayEvents],
-    );
+export const EventsOverviewPage = memo(function EventsOverviewPage({
+  eventChoices,
+  aggregateEvents,
+  displayEvents,
+  teams,
+  onTeamClick,
+  isTeamsDataUpdated,
+}: EventsOverviewPageProps) {
+  const headerMessage = useMemo(
+    () => eventsLabel(eventChoices, aggregateEvents, displayEvents),
+    [eventChoices, aggregateEvents, displayEvents],
+  );
 
-    const displayedTeams = useMemo(() => {
-      return teams.flatMap((team) => {
-        return getDisplayTeamData(team, aggregateEvents, displayEvents);
-      });
-    }, [teams, aggregateEvents, displayEvents]);
+  const displayedTeams = useMemo(() => {
+    return teams.flatMap((team) => {
+      return getDisplayTeamData(team, aggregateEvents, displayEvents);
+    });
+  }, [teams, aggregateEvents, displayEvents]);
 
-    const teamStatistics = useMemo<TeamStatistics[]>(
-      () =>
-        displayedTeams.map((team) => ({
-          team,
-          teamName: team.getTeamName(),
-          avgScore: team.getAvgPointsNoFouls(),
-          autoAvgScore: team.getAvgAutoPoints(),
-          teleopAvgScore: team.getAvgTeleopPoints(),
-          climbAvgScore: team.getAvgClimbPoints(),
-          dataPoints: team.getDataPoints(),
-          avgDriverRating: team.getAvgDriverRating(),
-          avgFouls: team.getAvgFouls(),
-          avgTechFouls: team.getAvgTechFouls(),
-        })),
-      [displayedTeams],
-    );
-    const dataRanges = useMemo(
-      () => calculateDataRanges(teamStatistics),
-      [teamStatistics],
-    );
-    const [teamSortKey, setTeamSortKey] = useState<TeamSortKey>("Rank");
-    const [teamSortInverted, setTeamSortInverted] = useState(false);
-    const sortedTeams = useMemo(
-      () =>
-        teamStatistics.toSorted((a, b) => {
-          const comparison = compareTeamStatistics(a, b, teamSortKey);
-          return teamSortInverted ? -comparison : comparison;
-        }),
-      [teamStatistics, teamSortKey, teamSortInverted],
-    );
-    const rankByTeamName = useMemo(
-      () =>
-        new Map(
-          teamStatistics
-            .toSorted((a, b) => compareTeamStatistics(a, b, "Rank"))
-            .map((team, index): [string, number] => [team.teamName, index + 1]),
-        ),
-      [teamStatistics],
-    );
+  const teamStatistics = useMemo<TeamStatistics[]>(
+    () =>
+      displayedTeams.map((team) => ({
+        team,
+        teamName: team.getTeamName(),
+        avgScore: team.getAvgPointsNoFouls(),
+        autoAvgScore: team.getAvgAutoPoints(),
+        teleopAvgScore: team.getAvgTeleopPoints(),
+        climbAvgScore: team.getAvgClimbPoints(),
+        dataPoints: team.getDataPoints(),
+        avgDriverRating: team.getAvgDriverRating(),
+        avgFouls: team.getAvgFouls(),
+        avgTechFouls: team.getAvgTechFouls(),
+      })),
+    [displayedTeams],
+  );
+  const dataRanges = useMemo(
+    () => calculateDataRanges(teamStatistics),
+    [teamStatistics],
+  );
+  const [teamSortKey, setTeamSortKey] = useState<TeamSortKey>("Rank");
+  const [teamSortInverted, setTeamSortInverted] = useState(false);
+  const sortedTeams = useMemo(
+    () =>
+      teamStatistics.toSorted((a, b) => {
+        const comparison = compareTeamStatistics(a, b, teamSortKey);
+        return teamSortInverted ? -comparison : comparison;
+      }),
+    [teamStatistics, teamSortKey, teamSortInverted],
+  );
+  const rankByTeamName = useMemo(
+    () =>
+      new Map(
+        teamStatistics
+          .toSorted((a, b) => compareTeamStatistics(a, b, "Rank"))
+          .map((team, index): [string, number] => [team.teamName, index + 1]),
+      ),
+    [teamStatistics],
+  );
 
-    const handleSort = (key: TeamSortKey) => {
-      if (teamSortKey === key) {
-        setTeamSortInverted((inverted) => !inverted);
-      } else {
-        setTeamSortKey(key);
-        setTeamSortInverted(false);
-      }
-    };
-
-    function header(name: TeamSortKey) {
-      return (
-        <div className="events-overview-header">
-          <button
-            type="button"
-            className="events-overview-sort-button"
-            onClick={() => handleSort(name)}
-            style={{
-              boxShadow:
-                teamSortKey === name && !teamSortInverted
-                  ? "inset 0 2px 0 0 white"
-                  : teamSortKey === name && teamSortInverted
-                    ? "inset 0 -2px 0 0 white"
-                    : undefined,
-            }}
-          >
-            {name}
-          </button>
-        </div>
-      );
+  const handleSort = (key: TeamSortKey) => {
+    if (teamSortKey === key) {
+      setTeamSortInverted((inverted) => !inverted);
+    } else {
+      setTeamSortKey(key);
+      setTeamSortInverted(false);
     }
+  };
 
-    return displayEvents.length === 0 ? (
-      <div className="card">
-        <h1>Events Overview</h1>
-        <span className="text-container">{headerMessage}</span>
+  function header(name: TeamSortKey) {
+    return (
+      <div className="events-overview-header">
+        <button
+          type="button"
+          className="events-overview-sort-button"
+          onClick={() => handleSort(name)}
+          style={{
+            boxShadow:
+              teamSortKey === name && !teamSortInverted
+                ? "inset 0 2px 0 0 white"
+                : teamSortKey === name && teamSortInverted
+                  ? "inset 0 -2px 0 0 white"
+                  : undefined,
+          }}
+        >
+          {name}
+        </button>
       </div>
-    ) : (
-      <div className="wide-card">
-        <h1>Events Overview</h1>
-        <span className="text-container">{headerMessage}</span>
+    );
+  }
+
+  return displayEvents.length === 0 ? (
+    <div className="card">
+      <h1>Events Overview</h1>
+      <span className="text-container">{headerMessage}</span>
+    </div>
+  ) : (
+    <div className="wide-card">
+      <h1>Events Overview</h1>
+      <span className="text-container">{headerMessage}</span>
+      {isTeamsDataUpdated ? (
         <div className="x-scroll-container events-overview-container">
           <div
             className="events-overview-row"
@@ -357,8 +360,9 @@ export const EventsOverviewPage = memo(
             </button>
           ))}
         </div>
-      </div>
-    );
-  },
-  pagePropsEqual,
-);
+      ) : (
+        <FetchingDataText />
+      )}
+    </div>
+  );
+}, pagePropsEqual);

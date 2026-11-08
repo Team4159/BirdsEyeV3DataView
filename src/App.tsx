@@ -91,34 +91,33 @@ function App() {
   const [displayEvents, setDisplayEvents] = useState<string[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<FrcTeam | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
-  const teamsUpdateIndex = useRef<number>(0);
-  const [teamsUpdated, setTeamsUpdated] = useState<boolean>(false);
+  const teamsDataUpdateIndex = useRef<number>(0);
+  const [isTeamsDataUpdated, setIsTeamsUpdated] = useState<boolean>(false);
 
   const shouldUpdateTeams = useMemo(() => {
-    if (teamsUpdated) {
+    if (isTeamsDataUpdated) {
       return false;
     }
-    if (teamsUpdateIndex.current === 0) {
+    if (teamsDataUpdateIndex.current === 0) {
       return false;
     }
     if (
-      teamsUpdateIndex.current > 0 &&
+      teamsDataUpdateIndex.current > 0 &&
       (currentPage === Page.Login || currentPage === Page.Settings)
     ) {
       return false;
     }
     return true;
-  }, [currentPage, teamsUpdated]);
+  }, [currentPage, isTeamsDataUpdated]);
 
   const updateTeams = useCallback(
     async (firestore: Firestore) => {
-      const scopeTeamUpdateIndex = teamsUpdateIndex.current + 1;
-      teamsUpdateIndex.current = scopeTeamUpdateIndex;
+      const scopeTeamUpdateIndex = teamsDataUpdateIndex.current + 1;
+      teamsDataUpdateIndex.current = scopeTeamUpdateIndex;
 
-      console.log("FETCH");
       const newTeams = await fetchTeamsFromEvents(firestore, aggregateEvents);
 
-      if (scopeTeamUpdateIndex !== teamsUpdateIndex.current) {
+      if (scopeTeamUpdateIndex !== teamsDataUpdateIndex.current) {
         return;
       }
 
@@ -142,13 +141,13 @@ function App() {
         }
       }
 
-      setTeamsUpdated(true);
+      setIsTeamsUpdated(true);
     },
     [aggregateEvents, selectedMatch, selectedTeam],
   );
 
   function toggleAggregateEvent(event: string) {
-    setTeamsUpdated(false);
+    setIsTeamsUpdated(false);
     if (aggregateEvents.includes(event)) {
       // removing an aggregate event also turns off its display toggle
       setDisplayEvents((prev) => prev.filter((e) => e !== event));
@@ -159,7 +158,7 @@ function App() {
   }
 
   function toggleDisplayEvent(event: string) {
-    setTeamsUpdated(false);
+    setIsTeamsUpdated(false);
     setDisplayEvents((prev) => {
       if (prev.includes(event)) {
         return prev.filter((e) => e !== event);
@@ -171,7 +170,7 @@ function App() {
 
   // when everything is selected, clicking the button clears the selection instead
   function toggleAllAggregateEvents() {
-    setTeamsUpdated(false);
+    setIsTeamsUpdated(false);
     if (aggregateEvents.length === eventChoices.length) {
       setAggregateEvents([]);
       setDisplayEvents([]);
@@ -181,7 +180,7 @@ function App() {
   }
 
   function toggleAllUndisplayedAggregateEvents() {
-    setTeamsUpdated(false);
+    setIsTeamsUpdated(false);
     if (aggregateEvents.length === displayEvents.length) {
       setAggregateEvents([...eventChoices]);
     } else {
@@ -190,7 +189,7 @@ function App() {
   }
 
   function toggleAllDisplayEvents() {
-    setTeamsUpdated(false);
+    setIsTeamsUpdated(false);
     if (displayEvents.length === aggregateEvents.length) {
       setDisplayEvents([]);
     } else {
@@ -216,7 +215,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (autoLoginDone && teamsUpdateIndex.current === 0) {
+    if (autoLoginDone && teamsDataUpdateIndex.current === 0) {
       (async () => {
         await updateTeams(firestore);
       })();
@@ -342,6 +341,7 @@ function App() {
           teams={teams}
           isActive={currentPage === Page.EventsOverview}
           onTeamClick={handleTeamClick}
+          isTeamsDataUpdated={isTeamsDataUpdated}
         />
       </KeepMountedPage>
 
@@ -356,6 +356,7 @@ function App() {
           displayEvents={displayEvents}
           teams={teams}
           isActive={currentPage === Page.AllianceBuilder}
+          isTeamsDataUpdated={isTeamsDataUpdated}
         />
       </KeepMountedPage>
 
@@ -366,6 +367,7 @@ function App() {
           aggregateEvents={aggregateEvents}
           displayEvents={displayEvents}
           isActive={currentPage === Page.ScouterLeaderboard}
+          isTeamsDataUpdated={isTeamsDataUpdated}
         />
       </KeepMountedPage>
     </main>
