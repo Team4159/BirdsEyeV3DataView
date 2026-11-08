@@ -46,16 +46,13 @@ function getLeaderboardCounts(
     emailCounts.set(email, (emailCounts.get(email) ?? 0) + 1);
   }
 
-  let total = 0;
-  emailCounts.forEach((count, email) => {
-    if (emailsToDisplay.has(email)) {
-      total += count;
-    } else {
+  emailCounts.forEach((_, email) => {
+    if (!emailsToDisplay.has(email)) {
       emailCounts.delete(email);
     }
   });
 
-  return { emailCounts, total };
+  return emailCounts;
 }
 
 export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
@@ -73,13 +70,20 @@ export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
   const [emailCounts, setEmailCounts] = useState<Map<string, number>>(
     new Map(),
   );
-  const [total, setTotal] = useState<number>(0);
+  const [emailDataAggregateEvents, setEmailDataAggregateEvents] = useState<
+    string[] | null
+  >(null);
+  const isEmailDataUpdated = emailDataAggregateEvents === aggregateEvents;
   const emailCountEntries = useMemo(
     () =>
       [...emailCounts.entries()].sort(
         (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
       ),
     [emailCounts],
+  );
+  const total = useMemo(
+    () => emailCountEntries.reduce((sum, [, count]) => sum + count, 0),
+    [emailCountEntries],
   );
   const rankByEmail = useMemo(
     () =>
@@ -104,13 +108,13 @@ export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
       return;
     }
 
-    const { emailCounts, total } = getLeaderboardCounts(
+    const emailCounts = getLeaderboardCounts(
       latestSnapshot.current,
       aggregateEvents,
       displayEvents,
     );
-    setTotal(total);
     setEmailCounts(emailCounts);
+    setEmailDataAggregateEvents(aggregateEvents);
   }, [aggregateEvents, displayEvents, isActive]);
 
   useEffect(
@@ -122,13 +126,13 @@ export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
           return;
         }
 
-        const { emailCounts, total } = getLeaderboardCounts(
+        const emailCounts = getLeaderboardCounts(
           snapshot,
           filters.aggregateEvents,
           filters.displayEvents,
         );
-        setTotal(total);
         setEmailCounts(emailCounts);
+        setEmailDataAggregateEvents(filters.aggregateEvents);
       }),
     [firestore],
   );
@@ -142,7 +146,7 @@ export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
     <div className="wide-card">
       <h1>Scouter Leaderboard</h1>
       <span className="text-container">{headerMessage}</span>
-      {isTeamsDataUpdated ? (
+      {isTeamsDataUpdated && isEmailDataUpdated ? (
         <>
           <span className="text-container">{`Total: ${total}`}</span>
           <div
@@ -154,7 +158,9 @@ export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
           >
             {emailCountEntries.map(([email, count]) => (
               <div key={email} className="scouter-leaderboard-row">
-                <div className="scouting-leaderboard-item">{`#${rankByEmail.get(email)}`}</div>
+                <div className="scouting-leaderboard-item">
+                  {`#${rankByEmail.get(email)}`}
+                </div>
                 <div className="scouting-leaderboard-item">{email}</div>
                 <div className="scouting-leaderboard-item">{count}</div>
               </div>
