@@ -177,6 +177,58 @@ function animateShadow(
   return element.animate([start, end], options);
 }
 
+function edgeScrollDelta(position: number, start: number, end: number) {
+  const edgeSize = 56;
+  const maxStep = 8;
+  if (position < start + edgeSize) {
+    return -Math.ceil(
+      maxStep * Math.min(1, (start + edgeSize - position) / edgeSize),
+    );
+  }
+  if (position > end - edgeSize) {
+    return Math.ceil(
+      maxStep * Math.min(1, (position - (end - edgeSize)) / edgeSize),
+    );
+  }
+  return 0;
+}
+
+function scrollAtEdges(card: HTMLElement | null, x: number, y: number) {
+  let scrolled = false;
+  if (card) {
+    const bounds = card.getBoundingClientRect();
+    const maxScrollLeft = card.scrollWidth - card.clientWidth;
+    const nextScrollLeft = Math.max(
+      0,
+      Math.min(
+        maxScrollLeft,
+        card.scrollLeft + edgeScrollDelta(x, bounds.left, bounds.right),
+      ),
+    );
+    if (nextScrollLeft !== card.scrollLeft) {
+      card.scrollLeft = nextScrollLeft;
+      scrolled = true;
+    }
+  }
+
+  const page = document.scrollingElement;
+  if (page) {
+    const maxScrollTop = page.scrollHeight - page.clientHeight;
+    const nextScrollTop = Math.max(
+      0,
+      Math.min(
+        maxScrollTop,
+        page.scrollTop + edgeScrollDelta(y, 0, window.innerHeight),
+      ),
+    );
+    if (nextScrollTop !== page.scrollTop) {
+      page.scrollTop = nextScrollTop;
+      scrolled = true;
+    }
+  }
+  return scrolled;
+}
+
 type AllianceBuilderPageProps = {
   eventChoices: string[];
   aggregateEvents: string[];
@@ -495,16 +547,43 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       }
     };
     animation.finished.then(done, done);
-    // the overlay flies to a viewport position computed now, so scrolling or resizing would leave it aiming at the wrong place;
-    // the chip simply appears in its box instead
-    window.addEventListener("scroll", settleLanding, {
+    // keep the moving destination aligned with its chip when the pool or page scrolls during the flight
+    const followLandingTarget = () => {
+      if (landingAnim.current !== animation) {
+        return;
+      }
+      const target = chipElement(landed.team);
+      const effect = animation.effect;
+      if (!target || !(effect instanceof KeyframeEffect)) {
+        settleLanding();
+        return;
+      }
+
+      const targetBox = target.getBoundingClientRect();
+      const endScales = landed.pulse ? [0.9, 1.03, 1] : [1];
+      effect.setKeyframes(
+        effect.getKeyframes().map((keyframe, index) =>
+          index === 0
+            ? keyframe
+            : {
+                ...keyframe,
+                transform: `translate(${targetBox.left}px, ${targetBox.top}px) scale(${endScales[index - 1] ?? 1})`,
+                width: `${targetBox.width}px`,
+                height: `${targetBox.height}px`,
+              },
+        ),
+      );
+    };
+    window.addEventListener("scroll", followLandingTarget, {
       capture: true,
       passive: true,
     });
-    window.addEventListener("resize", settleLanding);
+    window.addEventListener("resize", followLandingTarget);
     landingCleanup.current = () => {
-      window.removeEventListener("scroll", settleLanding, { capture: true });
-      window.removeEventListener("resize", settleLanding);
+      window.removeEventListener("scroll", followLandingTarget, {
+        capture: true,
+      });
+      window.removeEventListener("resize", followLandingTarget);
     };
     return true;
   }
@@ -750,10 +829,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     ).find((element) => element.dataset.team === team);
   }
 
-  function startDrag(
-    event: DragStartEvent,
-    team: string,
-  ) {
+  function startDrag(event: DragStartEvent, team: string) {
     // a second finger or a non-primary button never starts (or hijacks) a drag
     if (event.button !== 0 || !event.isPrimary) {
       return;
@@ -881,37 +957,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
       if (!dragRef.current) {
         return;
       }
-      const edgeSize = 56;
-      const scrollStep = 8;
-      let scrolled = false;
-      const card = cardRef.current;
-      if (card) {
-        const bounds = card.getBoundingClientRect();
-        if (pointerX < bounds.left + edgeSize && card.scrollLeft > 0) {
-          card.scrollLeft = Math.max(0, card.scrollLeft - scrollStep);
-          scrolled = true;
-        } else if (
-          pointerX > bounds.right - edgeSize &&
-          card.scrollLeft + card.clientWidth < card.scrollWidth
-        ) {
-          card.scrollLeft += scrollStep;
-          scrolled = true;
-        }
-      }
-      const page = document.scrollingElement;
-      if (page) {
-        if (pointerY < edgeSize && page.scrollTop > 0) {
-          window.scrollBy(0, -scrollStep);
-          scrolled = true;
-        } else if (
-          pointerY > window.innerHeight - edgeSize &&
-          page.scrollTop + page.clientHeight < page.scrollHeight
-        ) {
-          window.scrollBy(0, scrollStep);
-          scrolled = true;
-        }
-      }
-      if (scrolled) {
+      if (scrollAtEdges(cardRef.current, pointerX, pointerY)) {
         updateDropTarget(pointerX, pointerY);
       }
       autoScrollFrame = requestAnimationFrame(autoScroll);
@@ -1044,9 +1090,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     };
     const onTouchMove = (move: TouchEvent) => {
       for (const touch of Array.from(move.changedTouches)) {
-        if (
-          Math.hypot(touch.clientX - clientX, touch.clientY - clientY) > 10
-        ) {
+        if (Math.hypot(touch.clientX - clientX, touch.clientY - clientY) > 10) {
           cleanup();
           return;
         }
@@ -1325,7 +1369,9 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
                       touchAction: "auto",
                       pointerEvents: dragTeam ? undefined : "auto",
                     }}
-                    onPointerDown={(event) => handlePointerDown(event, ghostTeam)}
+                    onPointerDown={(event) =>
+                      handlePointerDown(event, ghostTeam)
+                    }
                     onDragStart={(event) => event.preventDefault()}
                   >
                     <h4>{label(ghostTeam)}</h4>
