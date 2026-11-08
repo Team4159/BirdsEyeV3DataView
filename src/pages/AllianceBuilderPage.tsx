@@ -279,7 +279,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     `${name.substring(3)} (#${rankByName.get(name)})`;
   const slottedTeams = new Set(board.slots);
   const pool = fullOrder(board.order, names).filter(
-    (name) => !slottedTeams.has(name),
+    (name) => !slottedTeams.has(name) && rankByName.has(name),
   );
   // the one overlay serves the held chip, then the same element carries it to its box, so it is never torn down mid-flight
   const ghostTeam = dragTeam ?? landingTeam;
