@@ -1,9 +1,13 @@
-import { collectionGroup, onSnapshot } from "firebase/firestore";
+import {
+  collectionGroup,
+  onSnapshot,
+  type QuerySnapshot,
+} from "firebase/firestore";
 import type { Firestore } from "firebase/firestore/lite";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { FetchingDataText } from "../ui/FetchingDataText";
-import { fetchMatchDatasFromEvents } from "../util/databaseFetcher";
 import { eventsLabel } from "../util/eventsLabel";
+import { matchDataPointFromFirestore } from "../util/matchDataPoint";
 import { pagePropsEqual } from "../util/pagePropsEqual";
 
 type LeaderboardPageProps = {
@@ -14,6 +18,45 @@ type LeaderboardPageProps = {
   isActive: boolean;
   isTeamsDataUpdated: boolean;
 };
+
+function getLeaderboardCounts(
+  snapshot: QuerySnapshot,
+  aggregateEvents: string[],
+  displayEvents: string[],
+) {
+  const aggregateEventSet = new Set(aggregateEvents);
+  const displayEventSet = new Set(displayEvents);
+  const emailCounts = new Map<string, number>();
+  const emailsToDisplay = new Set<string>();
+
+  for (const doc of snapshot.docs) {
+    const event = doc.ref.path.split("/")[1];
+    if (!event || !aggregateEventSet.has(event)) {
+      continue;
+    }
+
+    const email = matchDataPointFromFirestore(doc.data()).getScouterEmail();
+    if (!email) {
+      continue;
+    }
+
+    if (displayEventSet.has(event)) {
+      emailsToDisplay.add(email);
+    }
+    emailCounts.set(email, (emailCounts.get(email) ?? 0) + 1);
+  }
+
+  let total = 0;
+  emailCounts.forEach((count, email) => {
+    if (emailsToDisplay.has(email)) {
+      total += count;
+    } else {
+      emailCounts.delete(email);
+    }
+  });
+
+  return { emailCounts, total };
+}
 
 export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
   firestore,
@@ -32,7 +75,7 @@ export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
   );
   const [total, setTotal] = useState<number>(0);
   const emailCountEntries = useMemo(
-    () => [...emailCounts.entries()].sort((a, b) => b[1] - a[1]),
+    () => [...emailCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
     [emailCounts],
   );
   const rankByEmail = useMemo(
@@ -45,56 +88,47 @@ export const ScouterLeaderboardPage = memo(function ScouterLeaderboardPage({
       ),
     [emailCountEntries],
   );
+  const latestFilters = useRef({
+    aggregateEvents,
+    displayEvents,
+    isActive,
+  });
+  const latestSnapshot = useRef<QuerySnapshot | null>(null);
 
   useEffect(() => {
-    if (!isActive) {
+    latestFilters.current = { aggregateEvents, displayEvents, isActive };
+    if (!isActive || !latestSnapshot.current) {
       return;
     }
 
-    let isCurrentSubscription = true;
-    const unsubscribe = onSnapshot(
-      collectionGroup(firestore, "datasets"),
-      () => {
-        fetchMatchDatasFromEvents(firestore, aggregateEvents).then(
-          (aggregatedMatchDatas) => {
-            if (!isCurrentSubscription) {
-              return;
-            }
-            const emailCounts: Map<string, number> = new Map();
-            const emailsToDisplay = new Set<string>();
-            const displayEventSet = new Set(displayEvents);
-            for (const [_, matchData] of aggregatedMatchDatas) {
-              for (const matchDataPoint of matchData.getMatchDataPoints()) {
-                const email = matchDataPoint.getScouterEmail();
-                if (!email) {
-                  continue;
-                }
-                if (displayEventSet.has(matchData.getEvent())) {
-                  emailsToDisplay.add(email);
-                }
-                const currentCount = emailCounts.get(email) ?? 0;
-                emailCounts.set(email, currentCount + 1);
-              }
-            }
-            let total = 0;
-            emailCounts.forEach((count, email) => {
-              if (emailsToDisplay.has(email)) {
-                total += count;
-              } else {
-                emailCounts.delete(email);
-              }
-            });
-            setTotal(total);
-            setEmailCounts(emailCounts);
-          },
-        );
-      },
+    const { emailCounts, total } = getLeaderboardCounts(
+      latestSnapshot.current,
+      aggregateEvents,
+      displayEvents,
     );
-    return () => {
-      isCurrentSubscription = false;
-      unsubscribe();
-    };
-  }, [aggregateEvents, displayEvents, firestore, isActive]);
+    setTotal(total);
+    setEmailCounts(emailCounts);
+  }, [aggregateEvents, displayEvents, isActive]);
+
+  useEffect(
+    () =>
+      onSnapshot(collectionGroup(firestore, "datasets"), (snapshot) => {
+        latestSnapshot.current = snapshot;
+        const filters = latestFilters.current;
+        if (!filters.isActive) {
+          return;
+        }
+
+        const { emailCounts, total } = getLeaderboardCounts(
+          snapshot,
+          filters.aggregateEvents,
+          filters.displayEvents,
+        );
+        setTotal(total);
+        setEmailCounts(emailCounts);
+      }),
+    [firestore],
+  );
 
   return displayEvents.length === 0 ? (
     <div className="card">
