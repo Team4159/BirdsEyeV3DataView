@@ -296,6 +296,7 @@ function useAllianceBuilderInteractions({
   // painted chip boxes taken right before a state change; its presence is what makes the next commit animate
   const pendingMotion = useRef<Map<string, ChipSnapshot> | null>(null);
   const refreshBoxes = useRef(false);
+  const fadeTeams = useRef(new Set<string>());
   // the slides this component started on chips, so CSS transitions and fades are never mistaken for them
   const ownMotions = useRef(new WeakSet<Animation>());
   // the overlay's flight to its box after a drop, and the listeners that cut it short if the page moves under it
@@ -612,6 +613,8 @@ function useAllianceBuilderInteractions({
       return;
     }
     refreshBoxes.current = false;
+    const teamsToFade = new Set(fadeTeams.current);
+    fadeTeams.current.clear();
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
@@ -678,7 +681,11 @@ function useAllianceBuilderInteractions({
         Math.abs(rest.top - now.top) > 1 ||
         Math.abs(rest.width - now.width) > 1 ||
         Math.abs(rest.height - now.height) > 1;
-      if ((fadeAll && relocated) || (wrapped && !swapping)) {
+      if (
+        teamsToFade.has(team) ||
+        (fadeAll && relocated) ||
+        (wrapped && !swapping)
+      ) {
         element.animate([{ opacity: 0 }, { opacity: 1 }], {
           duration: MOVE_MS,
         });
@@ -1005,6 +1012,11 @@ function useAllianceBuilderInteractions({
           : hovered,
       );
     };
+    const updatePointerPosition = (x: number, y: number) => {
+      pointerX = x;
+      pointerY = y;
+      updateDropTarget(x, y);
+    };
     const onMove = (move: PointerEvent) => {
       if (move.pointerId !== pointerId) {
         return;
@@ -1014,9 +1026,7 @@ function useAllianceBuilderInteractions({
         onUp(move);
         return;
       }
-      pointerX = move.clientX;
-      pointerY = move.clientY;
-      updateDropTarget(pointerX, pointerY);
+      updatePointerPosition(move.clientX, move.clientY);
     };
 
     const autoScroll = () => {
@@ -1061,6 +1071,9 @@ function useAllianceBuilderInteractions({
         const target = Number(hoverKey);
         const displaced = startBoard.slots[target];
         const swap = fromSlot && !!displaced && displaced !== team;
+        if (!fromSlot && displaced && displaced !== team) {
+          fadeTeams.current.add(displaced);
+        }
         const neighbors =
           swap && isNeighborSlot(startBoard.slots.indexOf(team), target);
         swapCommit.current = neighbors;
@@ -1097,6 +1110,7 @@ function useAllianceBuilderInteractions({
       if (up.pointerId !== pointerId) {
         return;
       }
+      updatePointerPosition(up.clientX, up.clientY);
       finish(up);
     };
     const onPointerCancel = (cancel: PointerEvent) => {
@@ -1116,9 +1130,7 @@ function useAllianceBuilderInteractions({
     window.addEventListener("dragstart", blockDefault);
     window.addEventListener("selectstart", blockDefault);
     stopDrag.current = stop;
-    if (event.pointerType === "touch") {
-      autoScrollFrame = requestAnimationFrame(autoScroll);
-    }
+    autoScrollFrame = requestAnimationFrame(autoScroll);
   }
 
   function handlePointerDown(
