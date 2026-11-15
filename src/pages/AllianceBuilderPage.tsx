@@ -532,6 +532,7 @@ function useAllianceBuilderInteractions({
     const startTime = performance.now();
     let frameId = 0;
     let isRunning = true;
+    let updateOnScroll = () => {};
     let resolveFinished: () => void = () => {};
     const finished = new Promise<void>((resolve) => {
       resolveFinished = resolve;
@@ -542,6 +543,8 @@ function useAllianceBuilderInteractions({
       }
       isRunning = false;
       cancelAnimationFrame(frameId);
+      window.removeEventListener("scroll", updateOnScroll, true);
+      window.visualViewport?.removeEventListener("scroll", updateOnScroll);
       resolveFinished();
     };
     const flight: LandingFlight = { cancel: finish, finished };
@@ -552,7 +555,7 @@ function useAllianceBuilderInteractions({
       }
     });
 
-    const tick = (now: number) => {
+    const updatePosition = (now: number) => {
       if (!isRunning) {
         return;
       }
@@ -590,10 +593,24 @@ function useAllianceBuilderInteractions({
       overlay.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
       if (progress === 1) {
         finish();
-      } else {
+      }
+    };
+    updateOnScroll = () => updatePosition(performance.now());
+    const tick = (now: number) => {
+      updatePosition(now);
+      if (isRunning) {
         frameId = requestAnimationFrame(tick);
       }
     };
+    // iOS Safari can defer animation frames during a touch scroll. Reposition on the scroll event too,
+    // so the fixed overlay stays aligned with its moving destination throughout the gesture.
+    window.addEventListener("scroll", updateOnScroll, {
+      capture: true,
+      passive: true,
+    });
+    window.visualViewport?.addEventListener("scroll", updateOnScroll, {
+      passive: true,
+    });
     frameId = requestAnimationFrame(tick);
     return true;
   }
@@ -1142,7 +1159,11 @@ function useAllianceBuilderInteractions({
         // the overlay keeps flying from where it is painted, not where it was heading, so a fast release doesn't pop
         landing.current = {
           team,
-          pulse: !!release && hoverKey !== undefined && hoverKey !== "pool",
+          pulse:
+            !!release &&
+            hoverKey !== undefined &&
+            hoverKey !== "pool" &&
+            (!fromSlot || Number(hoverKey) !== startBoard.slots.indexOf(team)),
           from: {
             left: drag.x - drag.fx * drag.w,
             top: drag.y - drag.fy * drag.h,
@@ -1609,7 +1630,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
                       type="button"
                       tabIndex={-1}
                       draggable={false}
-                      className={`button event-button ${dragTone} alliance-drag-overlay`}
+                      className={`button event-button ${dragTone} alliance-drag-overlay${dragTeam ? " alliance-drag-overlay-held" : ""}`}
                       // while the overlay carries a dropped chip to its box it is the chip, so it can be grabbed again mid-flight.
                       // During a drag it must ignore the pointer so the box underneath can be found.
                       style={{

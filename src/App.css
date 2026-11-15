@@ -405,6 +405,10 @@ fieldset.grid-container.pool-drop {
     overflow-x: auto;
 }
 
+.alliance-chip:hover {
+    filter: brightness(110%);
+}
+
 .alliance-builder.dragging .alliance-chip:hover {
     filter: none;
 }
@@ -476,6 +480,10 @@ fieldset.grid-container.pool-drop {
     pointer-events: none;
     cursor: grabbing;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.alliance-drag-overlay-held {
+    filter: brightness(120%);
 }
 
 .alliance-rank {
