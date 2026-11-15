@@ -514,6 +514,8 @@ function useAllianceBuilderInteractions({
       width: targetRect.width,
       height: targetRect.height,
     };
+    let liveTargetRect = initialTarget;
+    let targetElement = target;
     const distance = Math.hypot(
       initialTarget.left - from.left,
       initialTarget.top - from.top,
@@ -529,6 +531,10 @@ function useAllianceBuilderInteractions({
       easing: "ease-out",
       fill: "forwards",
     });
+    // Keep the layout size fixed during the flight. Scaling via transform avoids a layout pass on every frame.
+    overlay.style.width = `${from.width}px`;
+    overlay.style.height = `${from.height}px`;
+    overlay.style.transformOrigin = "top left";
     const startTime = performance.now();
     let frameId = 0;
     let isRunning = true;
@@ -544,7 +550,9 @@ function useAllianceBuilderInteractions({
       isRunning = false;
       cancelAnimationFrame(frameId);
       window.removeEventListener("scroll", updateOnScroll, true);
+      window.removeEventListener("resize", updateOnScroll);
       window.visualViewport?.removeEventListener("scroll", updateOnScroll);
+      window.visualViewport?.removeEventListener("resize", updateOnScroll);
       resolveFinished();
     };
     const flight: LandingFlight = { cancel: finish, finished };
@@ -559,26 +567,21 @@ function useAllianceBuilderInteractions({
       if (!isRunning) {
         return;
       }
-      const liveTarget = chipElement(landed.team);
-      if (!liveTarget) {
-        finish();
-        return;
-      }
 
       const progress = Math.min(1, (now - startTime) / duration);
       const eased = landingEasing(progress);
       // The old pulse keyframes reached the target at offset 0.5, then scaled in place.
       const travelProgress = landed.pulse ? Math.min(1, eased / 0.5) : eased;
-      const liveRect = liveTarget.getBoundingClientRect();
-      const scrollX = liveRect.left - initialTarget.left;
-      const scrollY = liveRect.top - initialTarget.top;
+      const scrollX = liveTargetRect.left - initialTarget.left;
+      const scrollY = liveTargetRect.top - initialTarget.top;
       const left =
         from.left + (initialTarget.left - from.left) * travelProgress + scrollX;
       const top =
         from.top + (initialTarget.top - from.top) * travelProgress + scrollY;
-      const width = from.width + (liveRect.width - from.width) * travelProgress;
+      const width =
+        from.width + (liveTargetRect.width - from.width) * travelProgress;
       const height =
-        from.height + (liveRect.height - from.height) * travelProgress;
+        from.height + (liveTargetRect.height - from.height) * travelProgress;
       let scale = 1;
       if (landed.pulse && eased < 0.5) {
         scale = 1 - 0.1 * (eased / 0.5);
@@ -588,14 +591,37 @@ function useAllianceBuilderInteractions({
         scale = 1.03 - 0.03 * ((eased - 0.75) / 0.25);
       }
 
-      overlay.style.width = `${width}px`;
-      overlay.style.height = `${height}px`;
-      overlay.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
+      overlay.style.transform = `translate(${left + (width * (1 - scale)) / 2}px, ${top + (height * (1 - scale)) / 2}px) scale(${(width / from.width) * scale}, ${(height / from.height) * scale})`;
       if (progress === 1) {
         finish();
       }
     };
-    updateOnScroll = () => updatePosition(performance.now());
+    updateOnScroll = () => {
+      if (!targetElement.isConnected) {
+        const replacement = chipElement(landed.team);
+        if (!replacement) {
+          finish();
+          return;
+        }
+        targetElement = replacement;
+      }
+      const rect = targetElement.getBoundingClientRect();
+      if (
+        ![rect.left, rect.top, rect.width, rect.height].every(Number.isFinite) ||
+        rect.width <= 0 ||
+        rect.height <= 0
+      ) {
+        finish();
+        return;
+      }
+      liveTargetRect = {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      };
+      updatePosition(performance.now());
+    };
     const tick = (now: number) => {
       updatePosition(now);
       if (isRunning) {
@@ -608,7 +634,11 @@ function useAllianceBuilderInteractions({
       capture: true,
       passive: true,
     });
+    window.addEventListener("resize", updateOnScroll, { passive: true });
     window.visualViewport?.addEventListener("scroll", updateOnScroll, {
+      passive: true,
+    });
+    window.visualViewport?.addEventListener("resize", updateOnScroll, {
       passive: true,
     });
     frameId = requestAnimationFrame(tick);
