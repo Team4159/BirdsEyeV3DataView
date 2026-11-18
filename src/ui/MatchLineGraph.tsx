@@ -549,10 +549,7 @@ export function MatchLineGraph({ team, seriesType }: MatchLineGraphProps) {
       (series) => series.id !== "driverRating" && !hiddenSeries.has(series.id),
     )
     .map((series) => series.id);
-  if (
-    visibleAreaSeries.length === 0 &&
-    !hiddenSeries.has("driverRating")
-  ) {
+  if (visibleAreaSeries.length === 0 && !hiddenSeries.has("driverRating")) {
     visibleAreaSeries.push("driverRating");
   }
   const backgroundSeriesId = visibleAreaSeries.at(-1) ?? null;
