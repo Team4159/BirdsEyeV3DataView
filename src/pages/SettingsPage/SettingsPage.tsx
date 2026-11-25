@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./SettingsPage.css";
 
 type SettingsPageProps = {
   aggregateEvents: string[];
@@ -24,7 +25,7 @@ export function SettingsPage({
   const [searchValue, setSearchValue] = useState("");
   const [displaySearchValue, setDisplaySearchValue] = useState("");
   return (
-    <div>
+    <div className="settings-page">
       <div className="card">
         <div className="card-title-row">
           <h1>Aggregate Events</h1>
@@ -63,7 +64,7 @@ export function SettingsPage({
             if (!event.toLowerCase().includes(searchValue.toLowerCase())) {
               return null;
             }
-            const className = `button event-button ${aggregateEvents.includes(event) ? "yes" : "no"}`;
+            const className = `button event-button settings-event-button ${aggregateEvents.includes(event) ? "yes" : "no"}`;
             return (
               <button
                 type="button"
@@ -117,7 +118,7 @@ export function SettingsPage({
               event.toLowerCase().includes(displaySearchValue.toLowerCase()),
             )
             .map((event) => {
-              const className = `button event-button ${displayEvents.includes(event) ? "yes" : "no"}`;
+              const className = `button event-button settings-event-button ${displayEvents.includes(event) ? "yes" : "no"}`;
               return (
                 <button
                   type="button"

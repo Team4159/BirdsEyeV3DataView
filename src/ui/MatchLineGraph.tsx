@@ -25,6 +25,7 @@ import {
   teleopFuelBorderColor,
   totalPointsBorderColor,
 } from "./colorConstants";
+import "./MatchLineGraph/MatchLineGraph.css";
 
 type MatchLineGraphProps = {
   team: FrcTeam;

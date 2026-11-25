@@ -1,5 +1,6 @@
 import { type CredentialResponse, GoogleLogin } from "@react-oauth/google";
 import { useState } from "react";
+import "./LoginPage.css";
 
 type LoginPageProps = {
   onSuccess: (credentialResponse: CredentialResponse) => Promise<void>;

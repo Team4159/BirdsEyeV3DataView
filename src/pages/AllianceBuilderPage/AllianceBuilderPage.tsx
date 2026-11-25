@@ -12,17 +12,18 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { FetchingDataText } from "../ui/FetchingDataText";
+import { FetchingDataText } from "../../ui/FetchingDataText";
 import {
   createDataRange,
   type DataRange,
   extendDataRange,
-} from "../util/DataRange";
-import { eventsLabel } from "../util/eventsLabel";
-import type { FrcTeam } from "../util/FrcTeam";
-import { getStatColor } from "../util/getStatColor";
-import { pagePropsEqual } from "../util/pagePropsEqual";
-import { getDisplayTeamData } from "../util/teamData";
+} from "../../util/DataRange";
+import { eventsLabel } from "../../util/eventsLabel";
+import type { FrcTeam } from "../../util/FrcTeam";
+import { getStatColor } from "../../util/getStatColor";
+import { pagePropsEqual } from "../../util/pagePropsEqual";
+import { getDisplayTeamData } from "../../util/teamData";
+import "./AllianceBuilderPage.css";
 
 const PICK_COLUMNS = ["Captain", "1st Pick", "2nd Pick", "3rd Pick"];
 const ALLIANCE_COUNT = 8;

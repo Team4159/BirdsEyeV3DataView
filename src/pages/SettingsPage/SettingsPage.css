@@ -1,0 +1,59 @@
+.settings-page .card-button-container {
+    display: inline-flex;
+    flex-direction: row-reverse;
+}
+
+.settings-page .card-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.settings-page .card-title-row button {
+    margin: 4px;
+}
+
+.settings-page .card-title-row button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--button);
+}
+
+.settings-page .grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    box-sizing: border-box;
+    width: 100%;
+    gap: 6px;
+    margin-top: 16px;
+}
+
+.settings-page .grid-container button {
+    height: 80px;
+    font-weight: 600;
+}
+
+.settings-page .scrollable-container {
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+.settings-page fieldset.grid-container {
+    min-width: 0;
+    border: none;
+    margin: 16px 0 0;
+    padding: 0;
+}
+
+.settings-page .settings-event-button.no {
+    background-color: var(--button);
+}
+
+.settings-page .settings-event-button.no:hover {
+    background-color: color-mix(in oklab, var(--button), white 10%);
+}
+
+.settings-page .settings-event-button.yes:hover {
+    background-color: color-mix(in oklab, var(--is-yes), white 10%);
+}

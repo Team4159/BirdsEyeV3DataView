@@ -1,15 +1,16 @@
 import { memo, useMemo, useState } from "react";
-import { FetchingDataText } from "../ui/FetchingDataText";
+import "./EventsOverviewPage.css";
+import { FetchingDataText } from "../../ui/FetchingDataText";
 import {
   createDataRange,
   type DataRange,
   extendDataRange,
-} from "../util/DataRange";
-import { eventsLabel } from "../util/eventsLabel";
-import type { FrcTeam } from "../util/FrcTeam";
-import { getStatColor } from "../util/getStatColor";
-import { pagePropsEqual } from "../util/pagePropsEqual";
-import { getDisplayTeamData } from "../util/teamData";
+} from "../../util/DataRange";
+import { eventsLabel } from "../../util/eventsLabel";
+import type { FrcTeam } from "../../util/FrcTeam";
+import { getStatColor } from "../../util/getStatColor";
+import { pagePropsEqual } from "../../util/pagePropsEqual";
+import { getDisplayTeamData } from "../../util/teamData";
 
 type DataRangeKey =
   | "avgScore"

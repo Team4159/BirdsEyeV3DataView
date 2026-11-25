@@ -7,8 +7,10 @@
 
     --button: #414141;
     --button-hover: #585858;
+    --button-active: #3c89fe;
 
-    --accent: #22c55e;
+    --is-yes: #22c55e;
+    --is-no: #e04444;
 
     --card-max-width: 600px;
 }
@@ -20,8 +22,9 @@ body.light {
     --input: #e2e8f0;
     --border: #cbd5f5;
 
-    --button: #e2e8f0;
+    --button: #dcdcdc;
     --button-hover: #cbd5f5;
+    --button-active: #9fc1f5;
 }
 
 body {

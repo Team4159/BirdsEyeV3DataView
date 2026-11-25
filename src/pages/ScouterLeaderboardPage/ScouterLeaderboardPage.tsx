@@ -4,11 +4,12 @@ import {
 } from "firebase/firestore";
 import type { Firestore } from "firebase/firestore/lite";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { getScoutedEventDatasetsQuery } from "../firebase/fetchScoutedData";
-import { FetchingDataText } from "../ui/FetchingDataText";
-import { eventsLabel } from "../util/eventsLabel";
-import { matchDataPointFromFirestore } from "../util/matchDataPoint";
-import { pagePropsEqual } from "../util/pagePropsEqual";
+import { getScoutedEventDatasetsQuery } from "../../firebase/fetchScoutedData";
+import { FetchingDataText } from "../../ui/FetchingDataText";
+import { eventsLabel } from "../../util/eventsLabel";
+import { matchDataPointFromFirestore } from "../../util/matchDataPoint";
+import { pagePropsEqual } from "../../util/pagePropsEqual";
+import "./ScouterLeaderboardPage.css";
 
 type LeaderboardPageProps = {
   firestore: Firestore;
