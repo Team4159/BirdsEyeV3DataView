@@ -188,7 +188,6 @@ function App() {
   }
 
   function toggleAllDisplayEvents() {
-    setIsTeamsUpdated(false);
     if (displayEvents.length === aggregateEvents.length) {
       setDisplayEvents([]);
     } else {
