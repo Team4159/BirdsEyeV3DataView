@@ -32,6 +32,11 @@ const ALLIANCE_IDS = Array.from(
 );
 const SLOT_COUNT = ALLIANCE_COUNT * PICK_COLUMNS.length;
 const STAT_KEYS = ["total", "auto", "teleop", "climb"] as const;
+const BREAKDOWN_STATS = [
+  ["auto", "Auto"],
+  ["teleop", "Teleop"],
+  ["climb", "Climb"],
+] as const;
 const MOVE_MS = 450;
 // extra time per pixel traveled, capped so long moves don't drag
 const MS_PER_PX = 0.8;
@@ -63,6 +68,7 @@ type Board = {
   // pool order; teams missing from it are appended in teams order
   order: string[];
 };
+type HoverSlot = { team: string; index: number };
 
 type Drag = {
   team: string;
@@ -110,12 +116,20 @@ function fullOrder(order: string[], names: string[]) {
     .concat(names.filter((name) => !orderedNames.has(name)));
 }
 
+function rankOrder(names: string[], rankByName: ReadonlyMap<string, number>) {
+  return [...names].sort(
+    (a, b) => (rankByName.get(a) ?? 0) - (rankByName.get(b) ?? 0),
+  );
+}
+
 // values that display as 0.00 are white and kept out of the gradient range
 const isZero = (value: number) => Math.abs(value) < 0.005;
 
 // a single non-zero value has no spread to scale against, so it reads as the best (green)
 function statColor(value: number, range: DataRange) {
-  if (isZero(value)) return "white";
+  if (isZero(value)) {
+    return "white";
+  }
   return range.min === range.max
     ? "rgb(0, 255, 0)"
     : getStatColor(value, range, false);
@@ -139,6 +153,12 @@ function relativeTo(box: Box, origin: DOMRect): Box {
   };
 }
 
+function isValidBox({ left, top, width, height }: Box) {
+  return (
+    width > 0 && height > 0 && [left, top, width, height].every(Number.isFinite)
+  );
+}
+
 function landingEasing(progress: number) {
   // Match the historical cubic-bezier(0.2, 0, 0, 1) landing animation.
   let start = 0;
@@ -147,8 +167,11 @@ function landingEasing(progress: number) {
   for (let i = 0; i < 12; i++) {
     const inverse = 1 - parameter;
     const x = 3 * inverse ** 2 * parameter * 0.2 + parameter ** 3;
-    if (x < progress) start = parameter;
-    else end = parameter;
+    if (x < progress) {
+      start = parameter;
+    } else {
+      end = parameter;
+    }
     parameter = (start + end) / 2;
   }
   return 3 * (1 - parameter) * parameter ** 2 + parameter ** 3;
@@ -210,41 +233,251 @@ function edgeScrollDelta(position: number, start: number, end: number) {
   return 0;
 }
 
+function scrollElementAtEdge(
+  element: HTMLElement | null,
+  axis: "x" | "y",
+  pointer: number,
+  start: number,
+  end: number,
+) {
+  if (!element) {
+    return false;
+  }
+  const horizontal = axis === "x";
+  const current = horizontal ? element.scrollLeft : element.scrollTop;
+  const maximum = horizontal
+    ? element.scrollWidth - element.clientWidth
+    : element.scrollHeight - element.clientHeight;
+  const next = Math.max(
+    0,
+    Math.min(maximum, current + edgeScrollDelta(pointer, start, end)),
+  );
+  if (next === current) {
+    return false;
+  }
+  if (horizontal) {
+    element.scrollLeft = next;
+  } else {
+    element.scrollTop = next;
+  }
+  return true;
+}
+
 function scrollAtEdges(card: HTMLElement | null, x: number, y: number) {
-  let scrolled = false;
-  if (card) {
-    const bounds = card.getBoundingClientRect();
-    const maxScrollLeft = card.scrollWidth - card.clientWidth;
-    const nextScrollLeft = Math.max(
-      0,
-      Math.min(
-        maxScrollLeft,
-        card.scrollLeft + edgeScrollDelta(x, bounds.left, bounds.right),
-      ),
-    );
-    if (nextScrollLeft !== card.scrollLeft) {
-      card.scrollLeft = nextScrollLeft;
-      scrolled = true;
-    }
+  const bounds = card?.getBoundingClientRect();
+  const cardScrolled = bounds
+    ? scrollElementAtEdge(card, "x", x, bounds.left, bounds.right)
+    : false;
+  const pageScrolled = scrollElementAtEdge(
+    document.scrollingElement as HTMLElement | null,
+    "y",
+    y,
+    0,
+    window.innerHeight,
+  );
+  return cardScrolled || pageScrolled;
+}
+
+function slotAtPoint(card: HTMLElement | null, x: number, y: number) {
+  const direct = document
+    .elementFromPoint(x, y)
+    ?.closest<HTMLElement>("[data-slot]");
+  if (direct) {
+    return direct;
   }
 
-  const page = document.scrollingElement;
-  if (page) {
-    const maxScrollTop = page.scrollHeight - page.clientHeight;
-    const nextScrollTop = Math.max(
-      0,
-      Math.min(
-        maxScrollTop,
-        page.scrollTop + edgeScrollDelta(y, 0, window.innerHeight),
-      ),
-    );
-    if (nextScrollTop !== page.scrollTop) {
-      page.scrollTop = nextScrollTop;
-      scrolled = true;
+  const elements = card?.querySelectorAll<HTMLElement>(
+    ".alliance-grid [data-slot]",
+  );
+  const bounds = {
+    left: Infinity,
+    right: -Infinity,
+    top: Infinity,
+    bottom: -Infinity,
+  };
+  let nearest: HTMLElement | undefined;
+  let nearestDistance = Infinity;
+  elements?.forEach((element) => {
+    const rect = element.getBoundingClientRect();
+    bounds.left = Math.min(bounds.left, rect.left);
+    bounds.right = Math.max(bounds.right, rect.right);
+    bounds.top = Math.min(bounds.top, rect.top);
+    bounds.bottom = Math.max(bounds.bottom, rect.bottom);
+    const dx = rect.left + rect.width / 2 - x;
+    const dy = rect.top + rect.height / 2 - y;
+    const distance = dx * dx + dy * dy;
+    if (distance < nearestDistance) {
+      nearest = element;
+      nearestDistance = distance;
+    }
+  });
+  return nearest &&
+    x >= bounds.left &&
+    x <= bounds.right &&
+    y >= bounds.top &&
+    y <= bounds.bottom
+    ? nearest
+    : undefined;
+}
+
+function placeInSlot(base: Board, team: string, target: number): Board {
+  const from = base.slots.indexOf(team);
+  if (from === target) {
+    return base;
+  }
+  const slots = [...base.slots];
+  if (from !== -1) {
+    slots[from] = base.slots[target];
+  }
+  slots[target] = team;
+  return { ...base, slots };
+}
+
+function autoFillBoard(
+  board: Board,
+  names: string[],
+  rankByName: ReadonlyMap<string, number>,
+): Board {
+  const slots = [...board.slots];
+  const available = rankOrder(names, rankByName).filter(
+    (name) => !slots.includes(name),
+  );
+  const forward = Array.from({ length: ALLIANCE_COUNT }, (_, i) => i);
+  const draftOrder = [
+    ...forward.flatMap((alliance) => [
+      alliance * PICK_COLUMNS.length,
+      alliance * PICK_COLUMNS.length + 1,
+    ]),
+    ...[...forward]
+      .reverse()
+      .map((alliance) => alliance * PICK_COLUMNS.length + 2),
+    ...forward.map((alliance) => alliance * PICK_COLUMNS.length + 3),
+  ];
+  let next = 0;
+  for (const index of draftOrder) {
+    if (!slots[index] && next < available.length) {
+      slots[index] = available[next++];
     }
   }
-  return scrolled;
+  return { ...board, slots };
 }
+
+function moveTeamToPool(
+  board: Board,
+  team: string,
+  index: number,
+  names: string[],
+): Board {
+  const ordered = fullOrder(board.order, names);
+  const slots = board.slots.map((slot) => (slot === team ? null : slot));
+  const pool = ordered.filter(
+    (name) => name !== team && !slots.includes(name),
+  );
+  const slotted = ordered.filter((name) => slots.includes(name));
+  return {
+    slots,
+    order: [...pool.slice(0, index), team, ...pool.slice(index), ...slotted],
+  };
+}
+
+function previewSlots(slots: (string | null)[], hover: HoverSlot | null) {
+  const preview = [...slots];
+  if (!hover) {
+    return preview;
+  }
+  const from = preview.indexOf(hover.team);
+  if (hover.index === -1) {
+    if (from !== -1) {
+      preview[from] = null;
+    }
+  } else {
+    const displaced = preview[hover.index];
+    if (from !== -1) {
+      preview[from] = displaced;
+    }
+    preview[hover.index] = hover.team;
+  }
+  return preview;
+}
+
+function allianceStats(
+  alliance: number,
+  slots: (string | null)[],
+  teamAverages: ReadonlyMap<string, TeamAverages>,
+): TeamAverages {
+  const start = alliance * PICK_COLUMNS.length;
+  const picks = slots.slice(start, start + PICK_COLUMNS.length);
+  const counted = picks.every(Boolean) ? picks.slice(0, 3) : picks;
+  return counted.reduce<TeamAverages>(
+    (total, name) => {
+      const averages = name ? teamAverages.get(name) : undefined;
+      if (averages) {
+        for (const stat of STAT_KEYS) {
+          total[stat] += averages[stat];
+        }
+      }
+      return total;
+    },
+    { total: 0, auto: 0, teleop: 0, climb: 0 },
+  );
+}
+
+function poolIndexAt(
+  card: HTMLElement | null,
+  x: number,
+  y: number,
+  team: string,
+) {
+  const chips = Array.from(
+    card?.querySelectorAll<HTMLElement>('[data-slot="pool"] [data-team]') ?? [],
+  );
+  const rects = chips.map((chip) => chip.getBoundingClientRect());
+  const held = chips.findIndex((chip) => chip.dataset.team === team);
+  if (rects.length === 0 || y < rects[0].top) {
+    return 0;
+  }
+
+  const lastRect = rects[rects.length - 1];
+  let gap = rects.length;
+  if (y <= lastRect.bottom) {
+    const rows: { indices: number[]; centerY: number }[] = [];
+    rects.forEach((rect, index) => {
+      const row = rows[rows.length - 1];
+      if (
+        !row ||
+        Math.abs(rect.top - rects[row.indices[0]].top) > rect.height / 2
+      ) {
+        rows.push({ indices: [index], centerY: rect.top + rect.height / 2 });
+      } else {
+        row.indices.push(index);
+      }
+    });
+
+    const columnCount = rows[0].indices.length;
+    const row = rows.reduce((closest, candidate) =>
+      Math.abs(candidate.centerY - y) < Math.abs(closest.centerY - y)
+        ? candidate
+        : closest,
+    );
+    const firstIndex = row.indices[0];
+    const lastIndex = row.indices[row.indices.length - 1];
+    const lastChip = rects[lastIndex];
+    if (
+      row.indices.length === columnCount &&
+      x >= lastChip.left + lastChip.width / 2
+    ) {
+      return lastIndex;
+    }
+    gap =
+      firstIndex +
+      row.indices.filter(
+        (index) => x > rects[index].left + rects[index].width / 2,
+      ).length;
+  }
+
+  return Math.max(0, gap - (held !== -1 && held < gap ? 1 : 0));
+}
+
 type AllianceBuilderPageProps = {
   eventChoices: string[];
   aggregateEvents: string[];
@@ -283,10 +516,7 @@ function useAllianceBuilderInteractions({
   >([]);
   const [overPool, setOverPool] = useState(false);
   // the slot a dragged team is hovering, so stats can preview a replacement before release
-  const [hoverSlot, setHoverSlot] = useState<{
-    team: string;
-    index: number;
-  } | null>(null);
+  const [hoverSlot, setHoverSlot] = useState<HoverSlot | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLButtonElement>(null);
   const dragRef = useRef<Drag | null>(null);
@@ -373,17 +603,16 @@ function useAllianceBuilderInteractions({
   }, [isActive, landingTeam]);
 
   useEffect(() => {
-    for (let i = 0; i < board.slots.length; i++) {
-      const slot = board.slots[i];
-      if (slot === null) {
-        continue;
+    setBoard((current) => {
+      const slots = current.slots.map((team) =>
+        team !== null && !teamNames.has(team) ? null : team,
+      );
+      if (slots.every((team, index) => team === current.slots[index])) {
+        return current;
       }
-      if (teamNames.has(slot)) {
-        continue;
-      }
-      board.slots[i] = null;
-    }
-  }, [board.slots, teamNames]);
+      return { ...current, slots };
+    });
+  }, [teamNames, setBoard]);
 
   // eases the overlay toward the pointer and target size without re-rendering
   useLayoutEffect(() => {
@@ -426,23 +655,28 @@ function useAllianceBuilderInteractions({
     pendingMotion.current = snapshot;
   }
 
-  // hands the chip back from the overlay to the real chip. The animation is left alone (its fill holds the last frame) so the
-  // overlay can't flash at the release point before React removes it.
-  function settleLanding() {
+  function takeLanding() {
+    const animation = landingAnim.current;
+    const shadow = shadowAnim.current;
     landingAnim.current = null;
-    // the shadow fade ends with the flight and holds its last frame the same way; it goes when the overlay does
     shadowAnim.current = null;
     landingCleanup.current?.();
     landingCleanup.current = null;
+    return { animation, shadow };
+  }
+
+  // hands the chip back from the overlay to the real chip. The animation is left alone (its fill holds the last frame) so the
+  // overlay can't flash at the release point before React removes it.
+  function settleLanding() {
+    takeLanding();
     setLandingTeam(null);
   }
 
   // stops a flight in progress. Used where the overlay is about to be reused or the board is about to change, inside a discrete
   // event, so React commits before the next paint and the cancelled overlay is never shown.
   function endLanding() {
-    const animation = landingAnim.current;
-    const shadow = shadowAnim.current;
-    settleLanding();
+    const { animation, shadow } = takeLanding();
+    setLandingTeam(null);
     animation?.cancel();
     shadow?.cancel();
   }
@@ -454,11 +688,8 @@ function useAllianceBuilderInteractions({
     if (!animation) {
       return false;
     }
+    takeLanding();
     const key = overlayKey;
-    landingAnim.current = null;
-    shadowAnim.current = null;
-    landingCleanup.current?.();
-    landingCleanup.current = null;
     const dispose = () => {
       window.removeEventListener("scroll", drop, { capture: true });
       window.removeEventListener("resize", drop);
@@ -488,34 +719,19 @@ function useAllianceBuilderInteractions({
       return false;
     }
     const { from } = landed;
-    if (
-      ![from.left, from.top, from.width, from.height].every(Number.isFinite) ||
-      from.width <= 0 ||
-      from.height <= 0
-    ) {
+    if (!isValidBox(from)) {
       return false;
     }
     const targetRect = target.getBoundingClientRect();
-    if (
-      ![
-        targetRect.left,
-        targetRect.top,
-        targetRect.width,
-        targetRect.height,
-      ].every(Number.isFinite) ||
-      targetRect.width <= 0 ||
-      targetRect.height <= 0
-    ) {
-      return false;
-    }
     const initialTarget: Box = {
       left: targetRect.left,
       top: targetRect.top,
       width: targetRect.width,
       height: targetRect.height,
     };
-    let liveTargetRect = initialTarget;
-    let targetElement = target;
+  if (!isValidBox(initialTarget)) {
+    return false;
+  }
     const distance = Math.hypot(
       initialTarget.left - from.left,
       initialTarget.top - from.top,
@@ -531,14 +747,9 @@ function useAllianceBuilderInteractions({
       easing: "ease-out",
       fill: "forwards",
     });
-    // Keep the layout size fixed during the flight. Scaling via transform avoids a layout pass on every frame.
-    overlay.style.width = `${from.width}px`;
-    overlay.style.height = `${from.height}px`;
-    overlay.style.transformOrigin = "top left";
     const startTime = performance.now();
     let frameId = 0;
     let isRunning = true;
-    let updateOnScroll = () => {};
     let resolveFinished: () => void = () => {};
     const finished = new Promise<void>((resolve) => {
       resolveFinished = resolve;
@@ -549,10 +760,6 @@ function useAllianceBuilderInteractions({
       }
       isRunning = false;
       cancelAnimationFrame(frameId);
-      window.removeEventListener("scroll", updateOnScroll, true);
-      window.removeEventListener("resize", updateOnScroll);
-      window.visualViewport?.removeEventListener("scroll", updateOnScroll);
-      window.visualViewport?.removeEventListener("resize", updateOnScroll);
       resolveFinished();
     };
     const flight: LandingFlight = { cancel: finish, finished };
@@ -567,21 +774,25 @@ function useAllianceBuilderInteractions({
       if (!isRunning) {
         return;
       }
-
+      const liveTarget = chipElement(landed.team);
+      if (!liveTarget) {
+        finish();
+        return;
+      }
       const progress = Math.min(1, (now - startTime) / duration);
       const eased = landingEasing(progress);
       // The old pulse keyframes reached the target at offset 0.5, then scaled in place.
       const travelProgress = landed.pulse ? Math.min(1, eased / 0.5) : eased;
-      const scrollX = liveTargetRect.left - initialTarget.left;
-      const scrollY = liveTargetRect.top - initialTarget.top;
+      const liveRect = liveTarget.getBoundingClientRect();
+      const scrollX = liveRect.left - initialTarget.left;
+      const scrollY = liveRect.top - initialTarget.top;
       const left =
         from.left + (initialTarget.left - from.left) * travelProgress + scrollX;
       const top =
         from.top + (initialTarget.top - from.top) * travelProgress + scrollY;
-      const width =
-        from.width + (liveTargetRect.width - from.width) * travelProgress;
+      const width = from.width + (liveRect.width - from.width) * travelProgress;
       const height =
-        from.height + (liveTargetRect.height - from.height) * travelProgress;
+        from.height + (liveRect.height - from.height) * travelProgress;
       let scale = 1;
       if (landed.pulse && eased < 0.5) {
         scale = 1 - 0.1 * (eased / 0.5);
@@ -591,36 +802,12 @@ function useAllianceBuilderInteractions({
         scale = 1.03 - 0.03 * ((eased - 0.75) / 0.25);
       }
 
-      overlay.style.transform = `translate(${left + (width * (1 - scale)) / 2}px, ${top + (height * (1 - scale)) / 2}px) scale(${(width / from.width) * scale}, ${(height / from.height) * scale})`;
+      overlay.style.width = `${width}px`;
+      overlay.style.height = `${height}px`;
+      overlay.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
       if (progress === 1) {
         finish();
       }
-    };
-    updateOnScroll = () => {
-      if (!targetElement.isConnected) {
-        const replacement = chipElement(landed.team);
-        if (!replacement) {
-          finish();
-          return;
-        }
-        targetElement = replacement;
-      }
-      const rect = targetElement.getBoundingClientRect();
-      if (
-        ![rect.left, rect.top, rect.width, rect.height].every(Number.isFinite) ||
-        rect.width <= 0 ||
-        rect.height <= 0
-      ) {
-        finish();
-        return;
-      }
-      liveTargetRect = {
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height,
-      };
-      updatePosition(performance.now());
     };
     const tick = (now: number) => {
       updatePosition(now);
@@ -628,19 +815,6 @@ function useAllianceBuilderInteractions({
         frameId = requestAnimationFrame(tick);
       }
     };
-    // iOS Safari can defer animation frames during a touch scroll. Reposition on the scroll event too,
-    // so the fixed overlay stays aligned with its moving destination throughout the gesture.
-    window.addEventListener("scroll", updateOnScroll, {
-      capture: true,
-      passive: true,
-    });
-    window.addEventListener("resize", updateOnScroll, { passive: true });
-    window.visualViewport?.addEventListener("scroll", updateOnScroll, {
-      passive: true,
-    });
-    window.visualViewport?.addEventListener("resize", updateOnScroll, {
-      passive: true,
-    });
     frameId = requestAnimationFrame(tick);
     return true;
   }
@@ -696,15 +870,13 @@ function useAllianceBuilderInteractions({
     );
     // reads and writes run in batches, so the browser lays out once per commit instead of once per chip.
     // Only our own slides are cancelled: fades keep playing and CSS hover transitions are left alone.
-    const running = elements.map((element) =>
+    const running = elements.flatMap((element) =>
       element
         .getAnimations()
         .filter((animation) => ownMotions.current.has(animation)),
     );
-    for (const animations of running) {
-      for (const animation of animations) {
-        animation.cancel();
-      }
+    for (const animation of running) {
+      animation.cancel();
     }
     const nowRects = elements.map((element) =>
       relativeTo(element.getBoundingClientRect(), origin),
@@ -783,7 +955,7 @@ function useAllianceBuilderInteractions({
       setLandingTeam(null);
     }
     // a detached flight is aiming at the box its chip had; if this change moved that chip, the flight is aiming at the wrong place
-    for (const entry of Array.from(detached.current.values())) {
+    for (const entry of detached.current.values()) {
       const was = boxes.current.get(entry.team);
       const now = next.get(entry.team);
       if (
@@ -798,135 +970,22 @@ function useAllianceBuilderInteractions({
     boxes.current = next;
   });
 
-  // places a team on release, from the board as it was when the drag started; a slotted team swaps with the team it lands on
-  function placeInSlot(base: Board, team: string, target: number): Board {
-    const from = base.slots.indexOf(team);
-    if (from === target) {
-      return base;
-    }
-    const slots = [...base.slots];
-    if (from !== -1) {
-      slots[from] = base.slots[target];
-    }
-    // a pool team dropped on an occupied slot replaces it, so the displaced team returns to the pool
-    slots[target] = team;
-    return { ...base, slots };
-  }
-
-  // index in the pool (without the dropped team) where a drop at (x, y) lands, found from the pool chips' current positions
-  function poolIndexAt(x: number, y: number, team: string) {
-    const chips = Array.from(
-      cardRef.current?.querySelectorAll<HTMLElement>(
-        '[data-slot="pool"] [data-team]',
-      ) ?? [],
-    );
-    const rects = chips.map((chip) => chip.getBoundingClientRect());
-    const held = chips.findIndex((chip) => chip.dataset.team === team);
-    if (rects.length === 0 || y < rects[0].top) {
-      return 0;
-    }
-
-    const lastRect = rects[rects.length - 1];
-    let gap = rects.length;
-    if (y <= lastRect.bottom) {
-      const rows: { indices: number[]; centerY: number }[] = [];
-      rects.forEach((rect, index) => {
-        const row = rows[rows.length - 1];
-        if (
-          !row ||
-          Math.abs(rect.top - rects[row.indices[0]].top) > rect.height / 2
-        ) {
-          rows.push({ indices: [index], centerY: rect.top + rect.height / 2 });
-        } else {
-          row.indices.push(index);
-        }
-      });
-
-      const columnCount = rows[0].indices.length;
-      const rowIndex = rows.reduce(
-        (closestIndex, candidate, index) =>
-          Math.abs(candidate.centerY - y) <
-          Math.abs(rows[closestIndex].centerY - y)
-            ? index
-            : closestIndex,
-        0,
-      );
-      const row = rows[rowIndex];
-      const firstIndex = row.indices[0];
-      const lastIndex = row.indices[row.indices.length - 1];
-      const lastChip = rects[lastIndex];
-      if (
-        row.indices.length === columnCount &&
-        x >= lastChip.left + lastChip.width / 2
-      ) {
-        return lastIndex;
-      }
-      gap =
-        firstIndex +
-        row.indices.filter((index) => {
-          const rect = rects[index];
-          return x > rect.left + rect.width / 2;
-        }).length;
-    }
-
-    return Math.max(0, gap - (held !== -1 && held < gap ? 1 : 0));
-  }
-
   function moveToPool(team: string, index: number) {
     motionMode.current = "fly";
     swapCommit.current = false;
-    setBoard((prev) => {
-      const ordered = fullOrder(prev.order, names);
-      const slots = prev.slots.map((slot) => (slot === team ? null : slot));
-      const pool = ordered.filter(
-        (name) => name !== team && !slots.includes(name),
-      );
-      const slotted = ordered.filter((name) => slots.includes(name));
-      return {
-        slots,
-        order: [
-          ...pool.slice(0, index),
-          team,
-          ...pool.slice(index),
-          ...slotted,
-        ],
-      };
-    });
+    setBoard((previous) => moveTeamToPool(previous, team, index, names));
   }
 
   // fills empty boxes in draft order: each seed takes its captain then its 1st pick before the next seed, then the 2nd pick snakes (8-1) and the 3rd pick goes 1-8
   function autoFill() {
+    prepareBoardChange("fade");
+    setBoard((previous) => autoFillBoard(previous, names, rankByName));
+  }
+
+  function prepareBoardChange(mode: "fly" | "fade") {
     endLanding();
     snapshotChips();
-    motionMode.current = "fade";
-    setBoard((prev) => {
-      const slots = [...prev.slots];
-      const available = [...names]
-        .sort((a, b) => (rankByName.get(a) ?? 0) - (rankByName.get(b) ?? 0))
-        .filter((name) => !slots.includes(name));
-      const forward = Array.from({ length: ALLIANCE_COUNT }, (_, i) => i);
-      const draftOrder: number[] = [];
-      for (const alliance of forward) {
-        draftOrder.push(
-          alliance * PICK_COLUMNS.length,
-          alliance * PICK_COLUMNS.length + 1,
-        );
-      }
-      for (const alliance of [...forward].reverse()) {
-        draftOrder.push(alliance * PICK_COLUMNS.length + 2);
-      }
-      for (const alliance of forward) {
-        draftOrder.push(alliance * PICK_COLUMNS.length + 3);
-      }
-      let next = 0;
-      for (const index of draftOrder) {
-        if (slots[index] || next >= available.length) {
-          continue;
-        }
-        slots[index] = available[next++];
-      }
-      return { ...prev, slots };
-    });
+    motionMode.current = mode;
   }
 
   function chipElement(team: string) {
@@ -943,16 +1002,8 @@ function useAllianceBuilderInteractions({
     // measured before anything below can cancel a flight: a chip grabbed from the landing overlay is picked up exactly where it is painted
     const rect = event.currentTarget.getBoundingClientRect();
     if (
-      ![
-        rect.left,
-        rect.top,
-        rect.width,
-        rect.height,
-        event.clientX,
-        event.clientY,
-      ].every(Number.isFinite) ||
-      rect.width <= 0 ||
-      rect.height <= 0
+      !isValidBox(rect) ||
+      ![event.clientX, event.clientY].every(Number.isFinite)
     ) {
       return;
     }
@@ -1004,7 +1055,8 @@ function useAllianceBuilderInteractions({
     } catch {
       return;
     }
-    const fromSlot = board.slots.includes(team);
+    const fromSlotIndex = board.slots.indexOf(team);
+    const fromSlot = fromSlotIndex !== -1;
     dragRef.current = {
       team,
       x: event.clientX,
@@ -1035,39 +1087,7 @@ function useAllianceBuilderInteractions({
       if (!drag) {
         return;
       }
-      let slot = document
-        .elementFromPoint(x, y)
-        ?.closest<HTMLElement>("[data-slot]");
-      if (!slot) {
-        const slots = Array.from(
-          cardRef.current?.querySelectorAll<HTMLElement>(
-            ".alliance-grid [data-slot]",
-          ) ?? [],
-        ).map((element) => ({
-          element,
-          rect: element.getBoundingClientRect(),
-        }));
-        if (slots.length > 0) {
-          const left = Math.min(...slots.map(({ rect }) => rect.left));
-          const right = Math.max(...slots.map(({ rect }) => rect.right));
-          const top = Math.min(...slots.map(({ rect }) => rect.top));
-          const bottom = Math.max(...slots.map(({ rect }) => rect.bottom));
-          if (x >= left && x <= right && y >= top && y <= bottom) {
-            slot = slots.reduce((nearest, candidate) => {
-              const nearestX = nearest.rect.left + nearest.rect.width / 2 - x;
-              const nearestY = nearest.rect.top + nearest.rect.height / 2 - y;
-              const candidateX =
-                candidate.rect.left + candidate.rect.width / 2 - x;
-              const candidateY =
-                candidate.rect.top + candidate.rect.height / 2 - y;
-              return candidateX ** 2 + candidateY ** 2 <
-                nearestX ** 2 + nearestY ** 2
-                ? candidate
-                : nearest;
-            }).element;
-          }
-        }
-      }
+      const slot = slotAtPoint(cardRef.current, x, y);
       const key = slot?.dataset.slot;
       hoverKey = key;
       drag.tx = x;
@@ -1086,15 +1106,12 @@ function useAllianceBuilderInteractions({
             Number.parseFloat(style.borderTopWidth) +
             Number.parseFloat(style.borderBottomWidth);
         }
-        const tone = key === "pool" ? "no" : "yes";
-        if (tone !== drag.tone) {
-          drag.tone = tone;
-          setDragTone(tone);
-        }
       } else {
         drag.tw = drag.baseW;
         drag.th = drag.baseH;
-        const tone = fromSlot ? "yes" : "no";
+      }
+      const tone = key === "pool" || (!key && !fromSlot) ? "no" : "yes";
+      if (tone !== drag.tone) {
         drag.tone = tone;
         setDragTone(tone);
       }
@@ -1163,24 +1180,29 @@ function useAllianceBuilderInteractions({
       stop();
       // painted positions are taken before any state changes, so chips still sliding start from where they are on screen
       snapshotChips();
+      const targetIndex =
+        hoverKey !== undefined && hoverKey !== "pool"
+          ? Number(hoverKey)
+          : undefined;
 
       if (release && hoverKey === "pool") {
-        moveToPool(team, poolIndexAt(release.clientX, release.clientY, team));
-      } else if (release && hoverKey !== undefined) {
-        const target = Number(hoverKey);
-        const displaced = startBoard.slots[target];
+        moveToPool(
+          team,
+          poolIndexAt(cardRef.current, release.clientX, release.clientY, team),
+        );
+      } else if (release && targetIndex !== undefined) {
+        const displaced = startBoard.slots[targetIndex];
         const swap = fromSlot && !!displaced && displaced !== team;
         if (!fromSlot && displaced && displaced !== team) {
           fadeTeams.current.add(displaced);
         }
-        const neighbors =
-          swap && isNeighborSlot(startBoard.slots.indexOf(team), target);
+        const neighbors = swap && isNeighborSlot(fromSlotIndex, targetIndex);
         swapCommit.current = neighbors;
         // a swap between non-neighboring slots fades the displaced team; the dropped team always lands
         if (swap && !neighbors) {
           motionMode.current = "fade";
         }
-        setBoard((prev) => placeInSlot(prev, team, target));
+        setBoard((prev) => placeInSlot(prev, team, targetIndex));
       } else {
         setBoard(startBoard);
       }
@@ -1191,9 +1213,8 @@ function useAllianceBuilderInteractions({
           team,
           pulse:
             !!release &&
-            hoverKey !== undefined &&
-            hoverKey !== "pool" &&
-            (!fromSlot || Number(hoverKey) !== startBoard.slots.indexOf(team)),
+            targetIndex !== undefined &&
+            (!fromSlot || targetIndex !== fromSlotIndex),
           from: {
             left: drag.x - drag.fx * drag.w,
             top: drag.y - drag.fy * drag.h,
@@ -1307,21 +1328,12 @@ function useAllianceBuilderInteractions({
   }
 
   function reorder() {
-    endLanding();
-    snapshotChips();
-    motionMode.current = "fly";
-    setBoard((prev) => ({
-      ...prev,
-      order: [...names].sort(
-        (a, b) => (rankByName.get(a) ?? 0) - (rankByName.get(b) ?? 0),
-      ),
-    }));
+    prepareBoardChange("fly");
+    setBoard((prev) => ({ ...prev, order: rankOrder(names, rankByName) }));
   }
 
   function resetBoard() {
-    endLanding();
-    snapshotChips();
-    motionMode.current = "fade";
+    prepareBoardChange("fade");
     setBoard(emptyBoard());
   }
 
@@ -1365,7 +1377,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     });
   }, [allTeams, displayEvents, aggregateEvents]);
   const teamNames = useMemo<Set<string>>(
-    () => new Set(teams.flatMap((teams) => teams.getTeamName())),
+    () => new Set(teams.map((team) => team.getTeamName())),
     [teams],
   );
 
@@ -1437,9 +1449,7 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
     previousAggregateEvents.current = aggregateEvents;
     updatePoolOrder(
       previous.length === 0 && aggregateEvents.length > 0
-        ? [...names].sort(
-            (a, b) => (rankByName.get(a) ?? 0) - (rankByName.get(b) ?? 0),
-          )
+        ? rankOrder(names, rankByName)
         : undefined,
     );
   }, [aggregateEvents, isTeamsDataUpdated, names, rankByName, updatePoolOrder]);
@@ -1452,45 +1462,10 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
   // the one overlay serves the held chip, then the same element carries it to its box, so it is never torn down mid-flight
   const ghostTeam = dragTeam ?? landingTeam;
 
-  function allianceStats(alliance: number, slots: (string | null)[]) {
-    const start = alliance * PICK_COLUMNS.length;
-    const alliancePicks = slots.slice(start, start + PICK_COLUMNS.length);
-    // the 3rd pick only counts once the alliance has all four teams
-    const counted = alliancePicks.every(Boolean)
-      ? alliancePicks.slice(0, 3)
-      : alliancePicks;
-    const members = counted.flatMap((name) => {
-      const averages = name ? teamAverages.get(name) : undefined;
-      return averages ? [averages] : [];
-    });
-    const sum = (get: (averages: TeamAverages) => number) =>
-      members.reduce((total, averages) => total + get(averages), 0);
-    return {
-      total: sum((averages) => averages.total),
-      auto: sum((averages) => averages.auto),
-      teleop: sum((averages) => averages.teleop),
-      climb: sum((averages) => averages.climb),
-    };
-  }
-
   // colors each stat relative to the other alliances, like TeamsDisplay does for teams
-  const statSlots = [...board.slots];
-  if (hoverSlot) {
-    const from = statSlots.indexOf(hoverSlot.team);
-    if (hoverSlot.index === -1) {
-      if (from !== -1) {
-        statSlots[from] = null;
-      }
-    } else {
-      const displaced = statSlots[hoverSlot.index];
-      if (from !== -1) {
-        statSlots[from] = displaced;
-      }
-      statSlots[hoverSlot.index] = hoverSlot.team;
-    }
-  }
+  const statSlots = previewSlots(board.slots, hoverSlot);
   const allStats = ALLIANCE_IDS.map((_, alliance) =>
-    allianceStats(alliance, statSlots),
+    allianceStats(alliance, statSlots, teamAverages),
   );
   const statRanges = Object.fromEntries(
     STAT_KEYS.map((stat) => [stat, createDataRange()]),
@@ -1595,33 +1570,18 @@ export const AllianceBuilderPage = memo(function AllianceBuilderPage({
                     </span>
                     <span className="alliance-stat-label">Total</span>
                     <div className="alliance-stat-breakdown">
-                      <span
-                        style={{
-                          color: statColor(stats.auto, statRanges.auto),
-                        }}
-                      >
-                        {stats.auto.toFixed(2)}
-                        <br />
-                        Auto
-                      </span>
-                      <span
-                        style={{
-                          color: statColor(stats.teleop, statRanges.teleop),
-                        }}
-                      >
-                        {stats.teleop.toFixed(2)}
-                        <br />
-                        Teleop
-                      </span>
-                      <span
-                        style={{
-                          color: statColor(stats.climb, statRanges.climb),
-                        }}
-                      >
-                        {stats.climb.toFixed(2)}
-                        <br />
-                        Climb
-                      </span>
+                      {BREAKDOWN_STATS.map(([key, label]) => (
+                        <span
+                          key={key}
+                          style={{
+                            color: statColor(stats[key], statRanges[key]),
+                          }}
+                        >
+                          {stats[key].toFixed(2)}
+                          <br />
+                          {label}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </Fragment>
