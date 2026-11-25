@@ -1,4 +1,4 @@
-import { MatchLineGraph } from "../../ui/MatchLineGraph";
+import { MatchLineGraph } from "../../ui/MatchLineGraph/MatchLineGraph";
 import type { FrcTeam } from "../../util/FrcTeam";
 
 type TeamOverviewPageProps = {

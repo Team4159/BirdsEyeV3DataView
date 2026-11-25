@@ -14,8 +14,8 @@ import {
   useRef,
   useState,
 } from "react";
-import type { FrcTeam } from "../util/FrcTeam";
-import { formatMatchLabel, formatShortMatchLabel } from "../util/matchNameUtil";
+import type { FrcTeam } from "../../util/FrcTeam";
+import { formatMatchLabel, formatShortMatchLabel } from "../../util/matchNameUtil";
 import {
   autoClimbBorderColor,
   autoFuelBorderColor,
@@ -24,7 +24,7 @@ import {
   techFoulBorderColor,
   teleopFuelBorderColor,
   totalPointsBorderColor,
-} from "./colorConstants";
+} from "../colorConstants";
 import "./MatchLineGraph/MatchLineGraph.css";
 
 type MatchLineGraphProps = {
