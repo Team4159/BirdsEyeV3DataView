@@ -1,8 +1,8 @@
+import type { Firestore } from "firebase/firestore";
 import {
   onSnapshot,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
-import type { Firestore } from "firebase/firestore/lite";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { getScoutedEventDatasetsQuery } from "../../firebase/fetchScoutedData";
 import { FetchingDataText } from "../../ui/FetchingDataText";

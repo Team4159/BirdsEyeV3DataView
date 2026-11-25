@@ -158,7 +158,6 @@ function App() {
   }
 
   function toggleDisplayEvent(event: string) {
-    setIsTeamsUpdated(false);
     setDisplayEvents((prev) => {
       if (prev.includes(event)) {
         return prev.filter((e) => e !== event);
